@@ -220,7 +220,7 @@ Vagrant.configure("2") do |config|
 		<format>PNG</format>
 		<dimensions>
 		<assembly_type>stack</assembly_type>
-		<store_assemblies>false</store_assemblies>
+		<store_assemblies>true</store_assemblies>
 		<dimension name="source" default="osm" type="sqlite">
 		<dbfile>/tmp/mc/dim2nd/dim.sqlite</dbfile>
 		<validate_query>select item from dim where groupe=:dim</validate_query>
