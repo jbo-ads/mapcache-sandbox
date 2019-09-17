@@ -4,8 +4,8 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
   config.vm.network "forwarded_port", guest: 80, host: 8842
   config.vm.provision "shell", run: "always", inline: <<-SHELL
-	mv /etc/apt/sources.list.d/pgdg* /tmp
-	apt-get purge -y libgdal* libgeos* libspatialite*
+
+	# Mise en place des dépendances
 	add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable
 	apt-get update
 	apt-get install -y cmake libspatialite-dev libfcgi-dev libproj-dev \
@@ -14,6 +14,7 @@ Vagrant.configure("2") do |config|
 		libxml2-utils apache2 gdal-bin
 	apt-get install -y libpixman-1-dev libapr1-dev
 
+	# Compilation de MapCache
 	cd /vagrant
 	test -d mapcache || git clone https://github.com/jbo-ads/mapcache.git
 	cd mapcache
@@ -31,8 +32,23 @@ Vagrant.configure("2") do |config|
 	make
 	make install
 
+	# Réglages d'ensemble
+	cat <<-EOF > /etc/apache2/mods-enabled/mapcache.load
+		LoadModule mapcache_module /usr/lib/apache2/modules/mod_mapcache.so
+		EOF
 	mkdir -p /tmp/mc
-	cat <<-EOF > /tmp/mc/mapcache.xml
+
+	# mapcache-test: Réglages pour le petit test de bon fonctionnement
+	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-test?"
+	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-test.conf
+		<IfModule mapcache_module>
+		<Directory /tmp/mc>
+		Require all granted
+		</Directory>
+		MapCacheAlias "/mapcache-test" "/tmp/mc/mapcache-test.xml"
+		</IfModule>
+		EOF
+	cat <<-EOF > /tmp/mc/mapcache-test.xml
 		<?xml version="1.0" encoding="UTF-8"?>
 		<mapcache>
 		<source name="global-tif" type="gdal">
@@ -56,15 +72,7 @@ Vagrant.configure("2") do |config|
 	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
 	chown -R www-data:www-data /tmp/mc
 
-	cat <<-EOF > /etc/apache2/conf-enabled/mapcache.conf
-		LoadModule mapcache_module /usr/lib/apache2/modules/mod_mapcache.so
-		<IfModule mapcache_module>
-		<Directory /tmp/mc>
-		Require all granted
-		</Directory>
-		MapCacheAlias "/mapcache" "/tmp/mc/mapcache.xml"
-		</IfModule>
-		EOF
+	# Relance d'Apache pour le prise en compte des réglages de MapCache
 	apachectl -k stop
 	apachectl -k start
 	SHELL
