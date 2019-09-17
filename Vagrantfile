@@ -73,8 +73,10 @@ Vagrant.configure("2") do |config|
 	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
 
 	# mapcache-dim2nd: Réglages pour des dimensions de second niveau
-	rm -f /tmp/mc/dim.sqlite
-	sqlite3 /tmp/mc/dim.sqlite <<-EOF
+	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-dim2nd?"
+	mkdir -p /tmp/mc/dim2nd
+	rm -f /tmp/mc/dim2nd/dim.sqlite
+	sqlite3 /tmp/mc/dim2nd/dim.sqlite <<-EOF
 		PRAGMA foreign_keys=OFF;
 		BEGIN TRANSACTION;
 		CREATE TABLE dim(groupe,item);
@@ -208,12 +210,29 @@ Vagrant.configure("2") do |config|
 		<grid>WGS84</grid>
 		<format>PNG</format>
 		</tileset>
+		<cache name="dims" type="sqlite3">
+		<dbfile>/tmp/mc/dim2nd/{dim:source}.sqlite3</dbfile>
+		<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
+		</cache>
+		<tileset name="dims">
+		<cache>dims</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="source" default="osm" type="sqlite">
+		<dbfile>/tmp/mc/dim2nd/dim.sqlite</dbfile>
+		<validate_query>select item from dim where groupe=:dim</validate_query>
+		<list_query> select distinct(item) from dim</list_query>
+		</dimension>
+		</dimensions>
+		</tileset>
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
 		</mapcache>
 		EOF
-	#
 
 	# Relance d'Apache pour le prise en compte des réglages de MapCache
 	chown -R www-data:www-data /tmp/mc
