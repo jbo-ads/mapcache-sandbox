@@ -14,6 +14,7 @@ Vagrant.configure("2") do |config|
 		libxml2-utils apache2 gdal-bin
 	apt-get install -y libpixman-1-dev libapr1-dev
 	apt-get install -y sqlite3
+	apt-get install -y postgresql-10 postgresql-server-dev-10 libpq-dev
 
 	# Compilation de MapCache
 	cd /vagrant
@@ -29,6 +30,7 @@ Vagrant.configure("2") do |config|
 		-DWITH_TIFF_WRITE_SUPPORT=ON \
 		-DWITH_PCRE=ON \
 		-DWITH_SQLITE=ON \
+		-DWITH_POSTGRESQL=ON \
 		-DWITH_BERKELEY_DB=ON
 	make
 	make install
@@ -212,7 +214,6 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<cache name="dims" type="sqlite3">
 		<dbfile>/tmp/mc/dim2nd/{dim:source}.sqlite3</dbfile>
-		<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
 		</cache>
 		<tileset name="dims">
 		<cache>dims</cache>
@@ -234,7 +235,12 @@ Vagrant.configure("2") do |config|
 		</mapcache>
 		EOF
 
-	# Relance d'Apache pour le prise en compte des réglages de MapCache
+	# Initialisation de PostgreSQL
+	sudo -u postgres pg_createcluster -p 5433 --start 10 mapcache_cluster
+	sudo -u postgres createdb mapcache 
+	# sudo -u postgres psql -c "ALTER DATABASE mapcache OWNER TO mapcache;"
+
+	# Relance d'Apache pour la prise en compte des réglages de MapCache
 	chown -R www-data:www-data /tmp/mc
 	apachectl -k stop
 	apachectl -k start
