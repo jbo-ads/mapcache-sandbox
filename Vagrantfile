@@ -81,7 +81,7 @@ Vagrant.configure("2") do |config|
 	sqlite3 /tmp/mc/dim2nd/dim.sqlite <<-EOF
 		PRAGMA foreign_keys=OFF;
 		BEGIN TRANSACTION;
-		CREATE TABLE dim(groupe,item);
+		CREATE TABLE dim(groupe TEXT, item TEXT);
 		INSERT INTO "dim" VALUES('srtm','hillshade');
 		INSERT INTO "dim" VALUES('srtm','color');
 		INSERT INTO "dim" VALUES('srtm','hillshade-color');
@@ -214,6 +214,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<cache name="dims" type="sqlite3">
 		<dbfile>/tmp/mc/dim2nd/{dim:source}.sqlite3</dbfile>
+		<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
 		</cache>
 		<tileset name="dims">
 		<cache>dims</cache>
@@ -229,16 +230,33 @@ Vagrant.configure("2") do |config|
 		</dimension>
 		</dimensions>
 		</tileset>
+		<tileset name="dimspg">
+		<cache>dims</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="source" default="osm" type="postgresql">
+		<connection>user=postgres dbname=mapcache</connection>
+		<validate_query>select item from dim where groupe=:dim</validate_query>
+		<list_query> select distinct(item) from dim</list_query>
+		</dimension>
+		</dimensions>
+		</tileset>
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
 		</mapcache>
 		EOF
 
-	# Initialisation de PostgreSQL
-	sudo -u postgres pg_createcluster -p 5433 --start 10 mapcache_cluster
-	sudo -u postgres createdb mapcache 
-	# sudo -u postgres psql -c "ALTER DATABASE mapcache OWNER TO mapcache;"
+	# Mise en place de PostgreSQL
+	sed -i 's/md5/trust/' /etc/postgresql/10/main/pg_hba.conf
+	sed -i 's/peer/trust/' /etc/postgresql/10/main/pg_hba.conf
+	service postgresql restart
+	psql -U postgres -c 'CREATE DATABASE mapcache;'
+	sqlite3 /tmp/mc/dim2nd/dim.sqlite '.dump' | grep -v PRAGMA | psql -U postgres -d mapcache
+	psql -U postgres -d mapcache -c 'SELECT * FROM dim;'
 
 	# Relance d'Apache pour la prise en compte des réglages de MapCache
 	chown -R www-data:www-data /tmp/mc
