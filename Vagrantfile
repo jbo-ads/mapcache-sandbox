@@ -253,6 +253,7 @@ Vagrant.configure("2") do |config|
 	# Mise en place de PostgreSQL
 	sed -i 's/md5/trust/' /etc/postgresql/10/main/pg_hba.conf
 	sed -i 's/peer/trust/' /etc/postgresql/10/main/pg_hba.conf
+	echo "log_statement = 'all'" | sudo tee -a /etc/postgresql/10/main/postgresql.conf
 	service postgresql restart
 	psql -U postgres -c 'CREATE DATABASE mapcache;'
 	sqlite3 /tmp/mc/dim2nd/dim.sqlite '.dump' | grep -v PRAGMA | psql -U postgres -d mapcache
