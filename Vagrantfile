@@ -3,6 +3,10 @@ Vagrant.configure("2") do |config|
   config.vm.hostname = "vagrant-mapcache-sandbox"
   config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
   config.vm.network "forwarded_port", guest: 80, host: 8842
+  config.vm.network "forwarded_port", guest: 9200, host: 9242
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 2048
+  end
   config.vm.provision "shell", run: "always", inline: <<-SHELL
 
 	# Mise en place des dépendances
@@ -15,6 +19,11 @@ Vagrant.configure("2") do |config|
 	apt-get install -y libpixman-1-dev libapr1-dev
 	apt-get install -y sqlite3
 	apt-get install -y postgresql-10 postgresql-server-dev-10 libpq-dev
+	apt-get install -y default-jdk
+	curl -s "https://artifacts.elastic.co/GPG-KEY-elasticsearch" | apt-key add -
+	add-apt-repository -y "deb https://artifacts.elastic.co/packages/7.x/apt stable main"
+	apt-get update
+	apt-get install -y elasticsearch
 
 	# Compilation de MapCache
 	cd /vagrant
@@ -244,11 +253,48 @@ Vagrant.configure("2") do |config|
 		</dimension>
 		</dimensions>
 		</tileset>
+		<tileset name="dimses">
+		<cache>dims</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="source" default="osm" type="elasticsearch">
+		<http>
+		<url>http://localhost:9200/dim/_search</url>
+		<headers>
+		<Content-Type>application/json</Content-Type>
+		</headers>
+		</http>
+		<validate_query><![CDATA[ {
+		"size": 0,
+		"aggs": { "items": { "terms": { "field": "item.keyword" } } },
+		"query": { "term": { "groupe": ":dim" } }
+		} ]]></validate_query>
+		<validate_response><![CDATA[
+		[ "aggregations", "items", "buckets", "key" ]
+		]]></validate_response>
+		<list_query><![CDATA[ {
+		"size": 0,
+		"aggs": { "items": { "terms": { "field": "item.keyword" } } }
+		} ]]></list_query>
+		<list_response><![CDATA[
+		[ "aggregations", "items", "buckets", "key" ]
+		]]></list_response>
+		</dimension>
+		</dimensions>
+		</tileset>
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
 		</mapcache>
 		EOF
+
+	# Relance d'Apache pour la prise en compte des réglages de MapCache
+	chown -R www-data:www-data /tmp/mc
+	apachectl -k stop
+	apachectl -k start
 
 	# Mise en place de PostgreSQL
 	sed -i 's/md5/trust/' /etc/postgresql/10/main/pg_hba.conf
@@ -259,9 +305,20 @@ Vagrant.configure("2") do |config|
 	sqlite3 /tmp/mc/dim2nd/dim.sqlite '.dump' | grep -v PRAGMA | psql -U postgres -d mapcache
 	psql -U postgres -d mapcache -c 'SELECT * FROM dim;'
 
-	# Relance d'Apache pour la prise en compte des réglages de MapCache
-	chown -R www-data:www-data /tmp/mc
-	apachectl -k stop
-	apachectl -k start
+	# Mise en place d'ElasticSearch
+	sed -i \
+		-e "/^#node.name: /s/^/node.name: vagrant-mapcache-sandbox /" \
+		-e "/^#network.host: /s/^/network.host: 0.0.0.0 /" \
+		-e "/^#cluster.initial_master_nodes: /s/^/cluster.initial_master_nodes: vagrant-mapcache-sandbox /" \
+		/etc/elasticsearch/elasticsearch.yml
+	systemctl enable elasticsearch.service
+	systemctl start elasticsearch.service
+	curl -s -X PUT http://localhost:9200/dim
+	for i in $(sqlite3 /tmp/mc/dim2nd/dim.sqlite 'SELECT * FROM dim' \
+		| awk -F'|' '{print "{\\"groupe\\":\\""$1"\\",\\"item\\":\\""$2"\\"}"}')
+	do
+		curl -s -XPOST -H 'Content-Type: application/json' 'http://localhost:9200/dim/_doc' -d "$i"
+        done
+
 	SHELL
 end
