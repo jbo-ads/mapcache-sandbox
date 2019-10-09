@@ -99,6 +99,13 @@ Vagrant.configure("2") do |config|
 		INSERT INTO "dim" VALUES('topo','topo-osm');
 		INSERT INTO "dim" VALUES('topo','topo');
 		INSERT INTO "dim" VALUES('osm','overlay');
+		INSERT INTO "dim" VALUES('all','hillshade');
+		INSERT INTO "dim" VALUES('all','color');
+		INSERT INTO "dim" VALUES('all','hillshade-color');
+		INSERT INTO "dim" VALUES('all','base');
+		INSERT INTO "dim" VALUES('all','topo-osm');
+		INSERT INTO "dim" VALUES('all','topo');
+		INSERT INTO "dim" VALUES('all','overlay');
 		COMMIT;
 		EOF
 	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-dim2nd.conf
