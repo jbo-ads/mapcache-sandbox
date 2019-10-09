@@ -301,6 +301,7 @@ Vagrant.configure("2") do |config|
 	sed -i 's/peer/trust/' /etc/postgresql/10/main/pg_hba.conf
 	echo "log_statement = 'all'" | sudo tee -a /etc/postgresql/10/main/postgresql.conf
 	service postgresql restart
+	psql -U postgres -c 'DROP DATABASE mapcache;'
 	psql -U postgres -c 'CREATE DATABASE mapcache;'
 	sqlite3 /tmp/mc/dim2nd/dim.sqlite '.dump' | grep -v PRAGMA | psql -U postgres -d mapcache
 	psql -U postgres -d mapcache -c 'SELECT * FROM dim;'
@@ -313,11 +314,12 @@ Vagrant.configure("2") do |config|
 		/etc/elasticsearch/elasticsearch.yml
 	systemctl enable elasticsearch.service
 	systemctl start elasticsearch.service
-	curl -s -X PUT http://localhost:9200/dim
+	curl -s -XDELETE "http://localhost:9242/dim"
+	curl -s -XPUT "http://localhost:9200/dim"
 	for i in $(sqlite3 /tmp/mc/dim2nd/dim.sqlite 'SELECT * FROM dim' \
 		| awk -F'|' '{print "{\\"groupe\\":\\""$1"\\",\\"item\\":\\""$2"\\"}"}')
 	do
-		curl -s -XPOST -H 'Content-Type: application/json' 'http://localhost:9200/dim/_doc' -d "$i"
+		curl -s -XPOST -H "Content-Type: application/json" "http://localhost:9200/dim/_doc" -d "$i"
         done
 
 	SHELL
