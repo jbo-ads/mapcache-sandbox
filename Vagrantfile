@@ -24,16 +24,17 @@ Vagrant.configure("2") do |config|
 	add-apt-repository -y "deb https://artifacts.elastic.co/packages/7.x/apt stable main"
 	apt-get update
 	apt-get install -y elasticsearch
+	apt-get install -y gdb
 
 	# Compilation de MapCache
 	cd /vagrant
 	test -d mapcache || git clone https://github.com/jbo-ads/mapcache.git
 	cd mapcache
-	git checkout master
+	git checkout fix-thread-safety-es
 	rm -rf build
 	mkdir build
 	cd build
-	cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+	cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Debug \
 		-DWITH_TIFF=ON \
 		-DWITH_GEOTIFF=ON \
 		-DWITH_TIFF_WRITE_SUPPORT=ON \
@@ -321,7 +322,7 @@ Vagrant.configure("2") do |config|
 		/etc/elasticsearch/elasticsearch.yml
 	systemctl enable elasticsearch.service
 	systemctl start elasticsearch.service
-	curl -s -XDELETE "http://localhost:9242/dim"
+	curl -s -XDELETE "http://localhost:9200/dim"
 	curl -s -XPUT "http://localhost:9200/dim"
 	for i in $(sqlite3 /tmp/mc/dim2nd/dim.sqlite 'SELECT * FROM dim' \
 		| awk -F'|' '{print "{\\"groupe\\":\\""$1"\\",\\"item\\":\\""$2"\\"}"}')
