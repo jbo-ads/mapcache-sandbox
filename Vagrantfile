@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
 	cd /vagrant
 	test -d mapcache || git clone https://github.com/jbo-ads/mapcache.git
 	cd mapcache
-	git checkout fix-thread-safety-es
+	git checkout amend-dbfile-dim-sanitization
 	rm -rf build
 	mkdir build
 	cd build
@@ -107,6 +107,9 @@ Vagrant.configure("2") do |config|
 		INSERT INTO "dim" VALUES('all','topo-osm');
 		INSERT INTO "dim" VALUES('all','topo');
 		INSERT INTO "dim" VALUES('all','overlay');
+		INSERT INTO "dim" VALUES('path','dim2nd/base');
+		INSERT INTO "dim" VALUES('path','dim2nd/topo-osm');
+		INSERT INTO "dim" VALUES('path','dim2nd/overlay');
 		COMMIT;
 		EOF
 	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-dim2nd.conf
@@ -233,6 +236,10 @@ Vagrant.configure("2") do |config|
 		<dbfile>/tmp/mc/dim2nd/{dim:source}.sqlite3</dbfile>
 		<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
 		</cache>
+		<cache name="dimspath" type="sqlite3">
+		<dbfile ALLOW_PATH_IN_DIM="YES">/tmp/mc/{dim:source}.sqlite3</dbfile>
+		<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
+		</cache>
 		<tileset name="dims">
 		<cache>dims</cache>
 		<grid>WGS84</grid>
@@ -263,6 +270,66 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="dimses">
 		<cache>dims</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="source" default="osm" type="elasticsearch">
+		<http>
+		<url>http://localhost:9200/dim/_search</url>
+		<headers>
+		<Content-Type>application/json</Content-Type>
+		</headers>
+		</http>
+		<validate_query><![CDATA[ {
+		"size": 0,
+		"aggs": { "items": { "terms": { "field": "item.keyword" } } },
+		"query": { "term": { "groupe": ":dim" } }
+		} ]]></validate_query>
+		<validate_response><![CDATA[
+		[ "aggregations", "items", "buckets", "key" ]
+		]]></validate_response>
+		<list_query><![CDATA[ {
+		"size": 0,
+		"aggs": { "items": { "terms": { "field": "item.keyword" } } }
+		} ]]></list_query>
+		<list_response><![CDATA[
+		[ "aggregations", "items", "buckets", "key" ]
+		]]></list_response>
+		</dimension>
+		</dimensions>
+		</tileset>
+		<tileset name="dimspath">
+		<cache>dimspath</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="source" default="osm" type="sqlite">
+		<dbfile>/tmp/mc/dim2nd/dim.sqlite</dbfile>
+		<validate_query>select item from dim where groupe=:dim</validate_query>
+		<list_query> select distinct(item) from dim</list_query>
+		</dimension>
+		</dimensions>
+		</tileset>
+		<tileset name="dimspgpath">
+		<cache>dimspath</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="source" default="osm" type="postgresql">
+		<connection>user=postgres dbname=mapcache</connection>
+		<validate_query>select item from dim where groupe=:dim</validate_query>
+		<list_query> select distinct(item) from dim</list_query>
+		</dimension>
+		</dimensions>
+		</tileset>
+		<tileset name="dimsespath">
+		<cache>dimspath</cache>
 		<grid>WGS84</grid>
 		<format>PNG</format>
 		<dimensions>
