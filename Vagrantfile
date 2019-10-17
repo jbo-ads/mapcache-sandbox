@@ -83,6 +83,57 @@ Vagrant.configure("2") do |config|
 		EOF
 	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
 
+	# mapcache-source: Réglages pour diverses sources WMS destinées à construire
+	# des produits simulés
+	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-source?"
+	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-source.conf
+		<IfModule mapcache_module>
+		MapCacheAlias "/mapcache-source" "/tmp/mc/mapcache-source.xml"
+		</IfModule>
+		EOF
+	cat <<-EOF > /tmp/mc/mapcache-source.xml
+		<?xml version="1.0" encoding="UTF-8"?>
+		<mapcache>
+		<!-- terrestris-osm -->
+		<source name="terrestris-osm" type="wms">
+		<http><url>http://ows.terrestris.de/osm/service?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>OSM-WMS</layers>
+		</params></getmap>
+		</source>
+		<cache name="terrestris-osm" type="sqlite3">
+		<dbfile>/tmp/mc/source/terrestris-osm.sqlite3</dbfile>
+		</cache>
+		<tileset name="terrestris-osm">
+		<source>terrestris-osm</source>
+		<cache>terrestris-osm</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		</tileset>
+		<!-- gibs-bluemarble -->
+		<source name="gibs-bluemarble" type="wms">
+		<http><url>https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>BlueMarble_NextGeneration</layers>
+		</params></getmap>
+		</source>
+		<cache name="gibs-bluemarble" type="sqlite3">
+		<dbfile>/tmp/mc/source/gibs-bluemarble.sqlite3</dbfile>
+		</cache>
+		<tileset name="gibs-bluemarble">
+		<source>gibs-bluemarble</source>
+		<cache>gibs-bluemarble</cache>
+		<grid>WGS84</grid>
+		<format>PNG</format>
+		</tileset>
+		<service type="wmts" enabled="true"/>
+		<service type="wms" enabled="true"/>
+		<log_level>debug</log_level>
+		</mapcache>
+		EOF
+
 	# Relance d'Apache pour la prise en compte des réglages de MapCache
 	chown -R www-data:www-data /tmp/mc
 	apachectl -k stop
@@ -104,7 +155,8 @@ Vagrant.configure("2") do |config|
 		/etc/elasticsearch/elasticsearch.yml
 	systemctl enable elasticsearch.service
 	systemctl start elasticsearch.service
-	curl -s -XDELETE "http://localhost:9242/dim"
+	curl -s -XDELETE "http://localhost:9200/dim"
+	curl -s "http://localhost:9200/"
 
 	SHELL
 end
