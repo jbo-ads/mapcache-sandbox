@@ -34,6 +34,10 @@ Vagrant.configure("2") do |config|
 	mkdir build
 	cd build
 	cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_C_FLAGS="-fprofile-arcs -ftest-coverage" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fprofile-arcs -ftest-coverage" \
+		-DCMAKE_SHARED_LINKER_FLAGS="-fprofile-arcs -ftest-coverage" \
 		-DWITH_TIFF=ON \
 		-DWITH_GEOTIFF=ON \
 		-DWITH_TIFF_WRITE_SUPPORT=ON \
@@ -84,7 +88,8 @@ Vagrant.configure("2") do |config|
 	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
 
 	# Relance d'Apache pour la prise en compte des réglages de MapCache
-	chown -R www-data:www-data /tmp/mc
+	chown -R vagrant:vagrant /tmp/mc
+	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
 	apachectl -k stop
 	apachectl -k start
 
@@ -104,7 +109,8 @@ Vagrant.configure("2") do |config|
 		/etc/elasticsearch/elasticsearch.yml
 	systemctl enable elasticsearch.service
 	systemctl start elasticsearch.service
-	curl -s -XDELETE "http://localhost:9242/dim"
+	curl -s -XDELETE "http://localhost:9200/dim"
+	curl -s "http://localhost:9200/"
 
 	SHELL
 end
