@@ -83,6 +83,7 @@ Vagrant.configure("2") do |config|
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
+		<threaded_fetching>true</threaded_fetching>
 		</mapcache>
 		EOF
 	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
