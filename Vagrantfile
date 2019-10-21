@@ -88,6 +88,50 @@ Vagrant.configure("2") do |config|
 		EOF
 	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
 
+	# Mise en place d'une page de navigation pour afficher les couches
+	#   L'URL depuis l'hôte est "http://localhost:8842/mapcache-sandbox-browser/"
+	mkdir -p /var/www/html/mapcache-sandbox-browser
+	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/index.html
+		
+		<!doctype html>
+		<html>
+		<head>
+		<title>MapCache sandbox browser</title>
+		<link href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/css/ol.css"
+		rel="stylesheet" type="text/css" />
+		<link href="https://unpkg.com/ol-layerswitcher@3.4.0/src/ol-layerswitcher.css"
+		rel="stylesheet" type="text/css" />
+		<style type="text/css">
+		.map {
+		height: 800px;
+		width: 100%;
+		}
+		</style>
+		<script
+		src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/build/ol.js">
+		</script>
+		<script src="https://unpkg.com/ol-layerswitcher@3.4.0">
+		</script>
+		</head>
+		<body>
+		<h2>MapCache sandbox browser</h2>
+		<div id="map" class="map"></div>
+		<script type="text/javascript">
+		var view = new ol.View({ projection: 'EPSG:3857', center: ol.proj.fromLonLat([0, 0]), zoom: 0 });
+		var sanity_check = new ol.layer.Tile({
+		title: 'Sanity check layer', type: 'base',
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-test?',
+		params: {'LAYERS': 'global', 'VERSION': '1.1.1'}
+		}) });
+		var layers = [ sanity_check ];
+		var map = new ol.Map({ target: 'map', layers: layers, view: view });
+		map.addControl(new ol.control.LayerSwitcher());
+		</script>
+		</body>
+		</html>
+		EOF
+
 	# Relance d'Apache pour la prise en compte des réglages de MapCache
 	chown -R vagrant:vagrant /tmp/mc
 	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
