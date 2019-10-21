@@ -109,12 +109,12 @@ Vagrant.configure("2") do |config|
 		<tileset name="terrestris-osm">
 		<source>terrestris-osm</source>
 		<cache>terrestris-osm</cache>
-		<grid>WGS84</grid>
+		<grid>GoogleMapsCompatible</grid>
 		<format>PNG</format>
 		</tileset>
 		<!-- gibs-bluemarble -->
 		<source name="gibs-bluemarble" type="wms">
-		<http><url>https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?</url></http>
+		<http><url>https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?</url></http>
 		<getmap><params>
 		<format>image/png</format>
 		<layers>BlueMarble_NextGeneration</layers>
@@ -126,7 +126,7 @@ Vagrant.configure("2") do |config|
 		<tileset name="gibs-bluemarble">
 		<source>gibs-bluemarble</source>
 		<cache>gibs-bluemarble</cache>
-		<grid>WGS84</grid>
+		<grid>GoogleMapsCompatible</grid>
 		<format>PNG</format>
 		</tileset>
 		<service type="wmts" enabled="true"/>
@@ -170,7 +170,19 @@ Vagrant.configure("2") do |config|
 		url: 'http://'+location.host+'/mapcache-test?',
 		params: {'LAYERS': 'global', 'VERSION': '1.1.1'}
 		}) });
-		var layers = [ sanity_check ];
+		var terrestris_osm = new ol.layer.Tile({
+		title: 'OSM (Terrestris)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'terrestris-osm', 'VERSION': '1.1.1'}
+		}) });
+		var gibs_bluemarble = new ol.layer.Tile({
+		title: 'Blue Marble (GIBS)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'gibs-bluemarble', 'VERSION': '1.1.1'}
+		}) });
+		var layers = [ terrestris_osm, gibs_bluemarble, sanity_check ];
 		var map = new ol.Map({ target: 'map', layers: layers, view: view });
 		map.addControl(new ol.control.LayerSwitcher());
 		</script>
