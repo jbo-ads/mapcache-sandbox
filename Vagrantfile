@@ -112,6 +112,91 @@ Vagrant.configure("2") do |config|
 		<grid>GoogleMapsCompatible</grid>
 		<format>PNG</format>
 		</tileset>
+		<!-- terrestris-topo -->
+		<source name="terrestris-topo" type="wms">
+		<http><url>http://ows.terrestris.de/osm/service?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>TOPO-WMS</layers>
+		</params></getmap>
+		</source>
+		<cache name="terrestris-topo" type="sqlite3">
+		<dbfile>/tmp/mc/source/terrestris-topo.sqlite3</dbfile>
+		</cache>
+		<tileset name="terrestris-topo">
+		<source>terrestris-topo</source>
+		<cache>terrestris-topo</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		</tileset>
+		<!-- terrestris-topo-osm -->
+		<source name="terrestris-topo-osm" type="wms">
+		<http><url>http://ows.terrestris.de/osm/service?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>TOPO-OSM-WMS</layers>
+		</params></getmap>
+		</source>
+		<cache name="terrestris-topo-osm" type="sqlite3">
+		<dbfile>/tmp/mc/source/terrestris-topo-osm.sqlite3</dbfile>
+		</cache>
+		<tileset name="terrestris-topo-osm">
+		<source>terrestris-topo-osm</source>
+		<cache>terrestris-topo-osm</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		</tileset>
+		<!-- terrestris-srtm30-color -->
+		<source name="terrestris-srtm30-color" type="wms">
+		<http><url>http://ows.terrestris.de/osm/service?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>SRTM30-Colored</layers>
+		</params></getmap>
+		</source>
+		<cache name="terrestris-srtm30-color" type="sqlite3">
+		<dbfile>/tmp/mc/source/terrestris-srtm30-color.sqlite3</dbfile>
+		</cache>
+		<tileset name="terrestris-srtm30-color">
+		<source>terrestris-srtm30-color</source>
+		<cache>terrestris-srtm30-color</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		</tileset>
+		<!-- terrestris-srtm30-hillshade -->
+		<source name="terrestris-srtm30-hillshade" type="wms">
+		<http><url>http://ows.terrestris.de/osm/service?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>SRTM30-Hillshade</layers>
+		</params></getmap>
+		</source>
+		<cache name="terrestris-srtm30-hillshade" type="sqlite3">
+		<dbfile>/tmp/mc/source/terrestris-srtm30-hillshade.sqlite3</dbfile>
+		</cache>
+		<tileset name="terrestris-srtm30-hillshade">
+		<source>terrestris-srtm30-hillshade</source>
+		<cache>terrestris-srtm30-hillshade</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		</tileset>
+		<!-- terrestris-srtm30-color-hillshade -->
+		<source name="terrestris-srtm30-color-hillshade" type="wms">
+		<http><url>http://ows.terrestris.de/osm/service?</url></http>
+		<getmap><params>
+		<format>image/png</format>
+		<layers>SRTM30-Colored-Hillshade</layers>
+		</params></getmap>
+		</source>
+		<cache name="terrestris-srtm30-color-hillshade" type="sqlite3">
+		<dbfile>/tmp/mc/source/terrestris-srtm30-color-hillshade.sqlite3</dbfile>
+		</cache>
+		<tileset name="terrestris-srtm30-color-hillshade">
+		<source>terrestris-srtm30-color-hillshade</source>
+		<cache>terrestris-srtm30-color-hillshade</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		</tileset>
 		<!-- gibs-bluemarble -->
 		<source name="gibs-bluemarble" type="wms">
 		<http><url>https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?</url></http>
@@ -170,19 +255,57 @@ Vagrant.configure("2") do |config|
 		url: 'http://'+location.host+'/mapcache-test?',
 		params: {'LAYERS': 'global', 'VERSION': '1.1.1'}
 		}) });
+		
+		
 		var terrestris_osm = new ol.layer.Tile({
 		title: 'OSM (Terrestris)', type: 'base', visible: false,
 		source: new ol.source.TileWMS({
 		url: 'http://'+location.host+'/mapcache-source?',
 		params: {'LAYERS': 'terrestris-osm', 'VERSION': '1.1.1'}
 		}) });
+		var terrestris_topo = new ol.layer.Tile({
+		title: 'TOPO (Terrestris)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'terrestris-topo', 'VERSION': '1.1.1'}
+		}) });
+		var terrestris_topo_osm = new ol.layer.Tile({
+		title: 'TOPO OSM (Terrestris)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'terrestris-topo-osm', 'VERSION': '1.1.1'}
+		}) });
+		var terrestris_srtm30_color = new ol.layer.Tile({
+		title: 'SRTM30 Colored (Terrestris)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'terrestris-srtm30-color', 'VERSION': '1.1.1'}
+		}) });
+		var terrestris_srtm30_hillshade = new ol.layer.Tile({
+		title: 'SRTM30 Hillshade (Terrestris)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'terrestris-srtm30-hillshade', 'VERSION': '1.1.1'}
+		}) });
+		var terrestris_srtm30_color_hillshade = new ol.layer.Tile({
+		title: 'SRTM30 Colored Hillshade (Terrestris)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'terrestris-srtm30-color-hillshade', 'VERSION': '1.1.1'}
+		}) });
+		var terrestris = new ol.layer.Group({
+		title: 'Terrestris',
+		layers: [ terrestris_osm, terrestris_topo, terrestris_topo_osm,
+		terrestris_srtm30_color, terrestris_srtm30_hillshade,
+		terrestris_srtm30_color_hillshade ]
+		});
 		var gibs_bluemarble = new ol.layer.Tile({
 		title: 'Blue Marble (GIBS)', type: 'base', visible: false,
 		source: new ol.source.TileWMS({
 		url: 'http://'+location.host+'/mapcache-source?',
 		params: {'LAYERS': 'gibs-bluemarble', 'VERSION': '1.1.1'}
 		}) });
-		var layers = [ terrestris_osm, gibs_bluemarble, sanity_check ];
+		var layers = [ terrestris, gibs_bluemarble, sanity_check ];
 		var map = new ol.Map({ target: 'map', layers: layers, view: view });
 		map.addControl(new ol.control.LayerSwitcher());
 		</script>
