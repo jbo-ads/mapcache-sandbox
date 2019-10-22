@@ -217,6 +217,7 @@ Vagrant.configure("2") do |config|
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
+		<threaded_fetching>true</threaded_fetching>
 		</mapcache>
 		EOF
 
@@ -295,6 +296,7 @@ Vagrant.configure("2") do |config|
 		}) });
 		var terrestris = new ol.layer.Group({
 		title: 'Terrestris',
+		fold: 'open',
 		layers: [ terrestris_osm, terrestris_topo, terrestris_topo_osm,
 		terrestris_srtm30_color, terrestris_srtm30_hillshade,
 		terrestris_srtm30_color_hillshade ]
