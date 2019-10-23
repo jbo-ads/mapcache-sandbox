@@ -24,6 +24,7 @@ Vagrant.configure("2") do |config|
 	add-apt-repository -y "deb https://artifacts.elastic.co/packages/7.x/apt stable main"
 	apt-get update
 	apt-get install -y elasticsearch
+	apt-get install -y dc
 
 	# Compilation de MapCache
 	cd /vagrant
@@ -52,6 +53,7 @@ Vagrant.configure("2") do |config|
 		</Directory>
 		EOF
 	mkdir -p /tmp/mc
+	rm /etc/apache2/conf-enabled/mapcache-*.conf
 
 	# mapcache-test: Réglages pour le petit test de bon fonctionnement
 	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-test?"
@@ -221,9 +223,98 @@ Vagrant.configure("2") do |config|
 		</mapcache>
 		EOF
 
+	# Relance d'Apache pour la prise en compte des premiers réglages de MapCache
+	chown -R vagrant:vagrant /tmp/mc
+	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
+	apachectl -k stop
+	apachectl -k start
+
+	# mapcache-produits: Création de produits simulés et réglages correspondants
+	# dans MapCache
+	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-produit?"
+	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-produit.conf
+		<IfModule mapcache_module>
+		MapCacheAlias "/mapcache-produit" "/tmp/mc/mapcache-produit.xml"
+		</IfModule>
+		EOF
+	cat <<-EOF > /tmp/mc/mapcache-produit.xml
+		<?xml version="1.0" encoding="UTF-8"?>
+		<mapcache>
+		EOF
+	cat <<-EOF > /vagrant/produits.js
+		var produits = new ol.layer.Group({
+		title: 'Produits', fold: 'open' });
+		EOF
+	mkdir -p /tmp/mc/produit/tiff
+	for prod in \
+		arcachon:-119075:5565095:carre:terrestris-osm \
+		laruns:-47548:5310224:horizontal:terrestris-osm \
+		somme:180903:6483586:vertical:terrestris-osm \
+		ossau:-49211:5288978:vertical:terrestris-srtm30-color-hillshade \
+		gourette:-37017:5305633:horizontal:terrestris-srtm30-hillshade
+	do
+		IFS=':' read -a argv <<< "$prod"
+		n=${argv[0]}
+		x=$(tr '-' '_' <<< ${argv[1]})
+		y=$(tr '-' '_' <<< ${argv[2]})
+		d=${argv[3]}
+		c=${argv[4]}
+		if [ $d == "carre" ]; then w=5;h=5;
+		elif [ $d == "horizontal" ]; then w=6;h=4;
+		elif [ $d == "vertical" ]; then w=4;h=4;
+		else w=3;h=3;
+		fi
+		l=19567.88
+		minx=$(echo "2k $x $l $w 2/*-pq" | dc)
+		miny=$(echo "2k $y $l $h 2/*-pq" | dc)
+		maxx=$(echo "2k $x $l $w 2/*+pq" | dc)
+		maxy=$(echo "2k $y $l $h 2/*+pq" | dc)
+		width=$(echo 256 $w *pq | dc)
+		height=$(echo 256 $h *pq | dc)
+		pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
+		url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=$c"
+		curl "$url" > /vagrant/${n}.jpg 2>/dev/null
+		gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
+			/vagrant/${n}.jpg /vagrant/${n}.tif
+		cp /vagrant/${n}.tif /tmp/mc/produit/tiff
+		cat <<-EOF >> /tmp/mc/mapcache-produit.xml
+			<!-- $n: ${argv[1]}, ${argv[2]} ($width x $height) -->
+			<source name="$n" type="gdal">
+			<data>/tmp/mc/produit/tiff/$n.tif</data>
+			</source>
+			<cache name="$n" type="sqlite3">
+			<dbfile>/tmp/mc/produit/$n.sqlite3</dbfile>
+			</cache>
+			<tileset name="$n">
+			<source>$n</source>
+			<cache>$n</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			</tileset>
+			EOF
+		cat <<-EOF >> /vagrant/produits.js
+			var $n = new ol.layer.Tile({
+			title: '$n: [ $minx, $miny, $maxx, $maxy ]',
+			type: 'base', visible: false,
+			source: new ol.source.TileWMS({
+			url: 'http://'+location.host+'/mapcache-produit?',
+			params: {'LAYERS': '$n', 'VERSION': '1.1.1'}
+			}) });
+			produits.getLayers().push($n);
+			EOF
+	done
+	cat <<-EOF >> /tmp/mc/mapcache-produit.xml
+		<service type="wmts" enabled="true"/>
+		<service type="wms" enabled="true"/>
+		<log_level>debug</log_level>
+		<threaded_fetching>true</threaded_fetching>
+		</mapcache>
+		EOF
+
 	# Mise en place d'une page de navigation pour afficher les couches
 	#   L'URL depuis l'hôte est "http://localhost:8842/mapcache-sandbox-browser/"
 	mkdir -p /var/www/html/mapcache-sandbox-browser
+	mv /vagrant/produits.js /var/www/html/mapcache-sandbox-browser
 	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/index.html
 		<!doctype html>
 		<html>
@@ -244,6 +335,7 @@ Vagrant.configure("2") do |config|
 		</script>
 		<script src="https://unpkg.com/ol-layerswitcher@3.4.0">
 		</script>
+		<script src="produits.js"></script>
 		</head>
 		<body>
 		<h2>MapCache sandbox browser</h2>
@@ -256,8 +348,6 @@ Vagrant.configure("2") do |config|
 		url: 'http://'+location.host+'/mapcache-test?',
 		params: {'LAYERS': 'global', 'VERSION': '1.1.1'}
 		}) });
-		
-		
 		var terrestris_osm = new ol.layer.Tile({
 		title: 'OSM (Terrestris)', type: 'base', visible: false,
 		source: new ol.source.TileWMS({
@@ -307,7 +397,7 @@ Vagrant.configure("2") do |config|
 		url: 'http://'+location.host+'/mapcache-source?',
 		params: {'LAYERS': 'gibs-bluemarble', 'VERSION': '1.1.1'}
 		}) });
-		var layers = [ terrestris, gibs_bluemarble, sanity_check ];
+		var layers = [ produits, terrestris, gibs_bluemarble, sanity_check ];
 		var map = new ol.Map({ target: 'map', layers: layers, view: view });
 		map.addControl(new ol.control.LayerSwitcher());
 		</script>
@@ -315,9 +405,8 @@ Vagrant.configure("2") do |config|
 		</html>
 		EOF
 
-	# Relance d'Apache pour la prise en compte des réglages de MapCache
+	# Relance d'Apache pour la prise en compte des nouveaux réglages de MapCache
 	chown -R vagrant:vagrant /tmp/mc
-	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
 	apachectl -k stop
 	apachectl -k start
 
