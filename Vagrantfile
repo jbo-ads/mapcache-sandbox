@@ -250,7 +250,11 @@ Vagrant.configure("2") do |config|
 		EOF
 	cat <<-EOF > /vagrant/produits/produits.js
 		var produits = new ol.layer.Group({
-		title: 'Produits', fold: 'open' });
+		title: 'Produits unitaires', fold: 'open' });
+		var milieux = new ol.layer.Group({
+		title: 'Produits par milieux', fold: 'open' });
+		var chapeau = new ol.layer.Group({
+		title: 'Produits', fold: 'open', layers: [ produits, milieux ] });
 		EOF
 	cat <<-EOF > /vagrant/produits/dimproduits.sql
 		PRAGMA foreign_keys=OFF;
@@ -330,13 +334,13 @@ Vagrant.configure("2") do |config|
 	do
 		cat <<-EOF >> /vagrant/produits/produits.js
 			var $n = new ol.layer.Tile({
-			title: 'produits: $milieu',
+			title: '$milieu',
 			type: 'base', visible: false,
 			source: new ol.source.TileWMS({
 			url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
 			params: {'LAYERS': 'produits', 'VERSION': '1.1.1'}
 			}) });
-			produits.getLayers().push($n);
+			milieux.getLayers().push($n);
 			EOF
 	done
 	cat <<-EOF >> /tmp/mc/mapcache-produit.xml
@@ -467,7 +471,7 @@ Vagrant.configure("2") do |config|
 		url: 'http://'+location.host+'/mapcache-source?',
 		params: {'LAYERS': 'gibs-bluemarble', 'VERSION': '1.1.1'}
 		}) });
-		var layers = [ produits, terrestris, gibs_bluemarble, sanity_check ];
+		var layers = [ chapeau, terrestris, gibs_bluemarble, sanity_check ];
 		var map = new ol.Map({ target: 'map', layers: layers, view: view });
 		map.addControl(new ol.control.LayerSwitcher());
 		</script>
