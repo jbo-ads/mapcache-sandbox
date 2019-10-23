@@ -318,6 +318,8 @@ Vagrant.configure("2") do |config|
 	# Relance d'Apache pour la prise en compte des réglages de MapCache
 	chown -R vagrant:vagrant /tmp/mc
 	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
+	sed -i '/^LogLevel/s/ mapcache:[a-z0-9]*//' /etc/apache2/apache2.conf
+	sed -i '/^LogLevel/s/$/ mapcache:debug/' /etc/apache2/apache2.conf
 	apachectl -k stop
 	apachectl -k start
 
