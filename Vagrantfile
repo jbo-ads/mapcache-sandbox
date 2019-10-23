@@ -53,7 +53,7 @@ Vagrant.configure("2") do |config|
 		</Directory>
 		EOF
 	mkdir -p /tmp/mc
-	rm /etc/apache2/conf-enabled/mapcache-*.conf
+	rm -f /etc/apache2/conf-enabled/mapcache-*.conf
 
 	# mapcache-test: Réglages pour le petit test de bon fonctionnement
 	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-test?"
@@ -229,11 +229,16 @@ Vagrant.configure("2") do |config|
 	sed -i '/^LogLevel/s/ mapcache:[a-z0-9]*//' /etc/apache2/apache2.conf
 	sed -i '/^LogLevel/s/$/ mapcache:debug/' /etc/apache2/apache2.conf
 	apachectl -k stop
+	sleep 1
 	apachectl -k start
+	sleep 1
 
 	# mapcache-produits: Création de produits simulés et réglages correspondants
 	# dans MapCache
 	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-produit?"
+	mkdir -p /tmp/mc/produit/tiff
+	rm -rf /vagrant/produits
+	mkdir -p /vagrant/produits
 	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-produit.conf
 		<IfModule mapcache_module>
 		MapCacheAlias "/mapcache-produit" "/tmp/mc/mapcache-produit.xml"
@@ -243,16 +248,15 @@ Vagrant.configure("2") do |config|
 		<?xml version="1.0" encoding="UTF-8"?>
 		<mapcache>
 		EOF
-	cat <<-EOF > /vagrant/produits.js
+	cat <<-EOF > /vagrant/produits/produits.js
 		var produits = new ol.layer.Group({
 		title: 'Produits', fold: 'open' });
 		EOF
-	cat <<-EOF > /vagrant/dimproduits.sql
+	cat <<-EOF > /vagrant/produits/dimproduits.sql
 		PRAGMA foreign_keys=OFF;
 		BEGIN TRANSACTION;
 		CREATE TABLE dim(milieu TEXT, produit TEXT);
 		EOF
-	mkdir -p /tmp/mc/produit/tiff
 	for prod in \
 		arcachon:-119075:5565095:carre:terrestris-osm:littoral \
 		laruns:-47548:5310224:horizontal:terrestris-osm:montagne \
@@ -269,7 +273,7 @@ Vagrant.configure("2") do |config|
 		c=${argv[4]}
 		if [ $d == "carre" ]; then w=5;h=5;
 		elif [ $d == "horizontal" ]; then w=6;h=4;
-		elif [ $d == "vertical" ]; then w=4;h=4;
+		elif [ $d == "vertical" ]; then w=4;h=6;
 		else w=3;h=3;
 		fi
 		l=19567.88
@@ -281,10 +285,10 @@ Vagrant.configure("2") do |config|
 		height=$(echo 256 $h *pq | dc)
 		pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
 		url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=$c"
-		curl "$url" > /vagrant/${n}.jpg 2>/dev/null
+		curl "$url" > /vagrant/produits/${n}.jpg 2>/dev/null
 		gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
-			/vagrant/${n}.jpg /vagrant/${n}.tif
-		cp /vagrant/${n}.tif /tmp/mc/produit/tiff
+			/vagrant/produits/${n}.jpg /vagrant/produits/${n}.tif
+		cp /vagrant/produits/${n}.tif /tmp/mc/produit/tiff
 		cat <<-EOF >> /tmp/mc/mapcache-produit.xml
 			<!-- $n: ${argv[1]}, ${argv[2]} ($width x $height) -->
 			<source name="$n" type="gdal">
@@ -300,7 +304,7 @@ Vagrant.configure("2") do |config|
 			<format>PNG</format>
 			</tileset>
 			EOF
-		cat <<-EOF >> /vagrant/produits.js
+		cat <<-EOF >> /vagrant/produits/produits.js
 			var $n = new ol.layer.Tile({
 			title: '$n: [ $minx, $miny, $maxx, $maxy ]',
 			type: 'base', visible: false,
@@ -313,26 +317,59 @@ Vagrant.configure("2") do |config|
 		IFS=',' read -a milieu <<< "${argv[5]},tout"
 		for m in "${milieu[@]}"
 		do
-			cat <<-EOF >> /vagrant/dimproduits.sql
+			cat <<-EOF >> /vagrant/produits/dimproduits.sql
 				INSERT INTO "dim" VALUES("$m","$n");
 				EOF
 		done
 	done
+	cat <<-EOF >> /vagrant/produits/dimproduits.sql
+		COMMIT;
+		EOF
+	sqlite3 /tmp/mc/produit/dimproduits.sqlite < /vagrant/produits/dimproduits.sql
+	for milieu in $(sqlite3 /tmp/mc/produit/dimproduits.sqlite 'select distinct(milieu) from dim')
+	do
+		cat <<-EOF >> /vagrant/produits/produits.js
+			var $n = new ol.layer.Tile({
+			title: 'produits: $milieu',
+			type: 'base', visible: false,
+			source: new ol.source.TileWMS({
+			url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+			params: {'LAYERS': 'produits', 'VERSION': '1.1.1'}
+			}) });
+			produits.getLayers().push($n);
+			EOF
+	done
 	cat <<-EOF >> /tmp/mc/mapcache-produit.xml
+		<!-- tous les produits, par milieu -->
+		<cache name="produits" type="sqlite3">
+		<dbfile>/tmp/mc/produit/{dim:milieu}.sqlite3</dbfile>
+		<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
+		</cache>
+		<tileset name="produits">
+		<cache>produits</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies>
+		<dimension name="milieu" default="tout" type="sqlite">
+		<dbfile>/tmp/mc/produit/dimproduits.sqlite</dbfile>
+		<validate_query>select produit from dim where milieu=:dim</validate_query>
+		<list_query> select distinct(produit) from dim</list_query>
+		</dimension>
+		</dimensions>
+		</tileset>
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
 		<threaded_fetching>true</threaded_fetching>
 		</mapcache>
 		EOF
-	cat <<-EOF >> /vagrant/dimproduits.sql
-		COMMIT;
-		EOF
 
 	# Mise en place d'une page de navigation pour afficher les couches
 	#   L'URL depuis l'hôte est "http://localhost:8842/mapcache-sandbox-browser/"
 	mkdir -p /var/www/html/mapcache-sandbox-browser
-	mv /vagrant/produits.js /var/www/html/mapcache-sandbox-browser
+	cp /vagrant/produits/produits.js /var/www/html/mapcache-sandbox-browser
 	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/index.html
 		<!doctype html>
 		<html>
@@ -426,6 +463,7 @@ Vagrant.configure("2") do |config|
 	# Relance d'Apache pour la prise en compte des nouveaux réglages de MapCache
 	chown -R vagrant:vagrant /tmp/mc
 	apachectl -k stop
+	sleep 1
 	apachectl -k start
 
 	# Mise en place de PostgreSQL
