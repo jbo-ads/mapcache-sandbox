@@ -366,6 +366,21 @@ Vagrant.configure("2") do |config|
 		</mapcache>
 		EOF
 
+	# Relance d'Apache pour la prise en compte des nouveaux réglages de MapCache
+	chown -R vagrant:vagrant /tmp/mc
+	apachectl -k stop
+	sleep 1
+	apachectl -k start
+	sleep 1
+
+	# Remplissage des caches des produits simulés
+	for produit in $(sqlite3 /tmp/mc/produit/dimproduits.sqlite 'select distinct(produit) from dim')
+	do
+		ll=$(gdalinfo /tmp/mc/produit/tiff/$produit.tif | awk '/Lower Left/{print $4$5}' | sed 's/)//')
+		ur=$(gdalinfo /tmp/mc/produit/tiff/$produit.tif | awk '/Upper Right/{print $4$5}' | sed 's/)//')
+		mapcache_seed -c /tmp/mc/mapcache-produit.xml -e $ll,$ur -g GoogleMapsCompatible -t ${produit} -z 0,12
+	done
+
 	# Mise en place d'une page de navigation pour afficher les couches
 	#   L'URL depuis l'hôte est "http://localhost:8842/mapcache-sandbox-browser/"
 	mkdir -p /var/www/html/mapcache-sandbox-browser
@@ -459,12 +474,6 @@ Vagrant.configure("2") do |config|
 		</body>
 		</html>
 		EOF
-
-	# Relance d'Apache pour la prise en compte des nouveaux réglages de MapCache
-	chown -R vagrant:vagrant /tmp/mc
-	apachectl -k stop
-	sleep 1
-	apachectl -k start
 
 	# Mise en place de PostgreSQL
 	sed -i 's/md5/trust/' /etc/postgresql/10/main/pg_hba.conf
