@@ -245,13 +245,19 @@ Vagrant.configure("2") do |config|
 		var produits = new ol.layer.Group({
 		title: 'Produits', fold: 'open' });
 		EOF
+	cat <<-EOF > /vagrant/dimproduits.sql
+		PRAGMA foreign_keys=OFF;
+		BEGIN TRANSACTION;
+		CREATE TABLE dim(milieu TEXT, produit TEXT);
+		EOF
 	mkdir -p /tmp/mc/produit/tiff
 	for prod in \
-		arcachon:-119075:5565095:carre:terrestris-osm \
-		laruns:-47548:5310224:horizontal:terrestris-osm \
-		somme:180903:6483586:vertical:terrestris-osm \
-		ossau:-49211:5288978:vertical:terrestris-srtm30-color-hillshade \
-		gourette:-37017:5305633:horizontal:terrestris-srtm30-hillshade
+		arcachon:-119075:5565095:carre:terrestris-osm:littoral \
+		laruns:-47548:5310224:horizontal:terrestris-osm:montagne \
+		somme:180903:6483586:vertical:terrestris-osm:littoral \
+		ossau:-49211:5288978:vertical:terrestris-srtm30-color-hillshade:montagne \
+		gourette:-37017:5305633:horizontal:terrestris-srtm30-hillshade:montagne \
+		larhune:-182061:5359134:horizontal:terrestris-osm:montagne,littoral
 	do
 		IFS=':' read -a argv <<< "$prod"
 		n=${argv[0]}
@@ -302,6 +308,13 @@ Vagrant.configure("2") do |config|
 			}) });
 			produits.getLayers().push($n);
 			EOF
+		IFS=',' read -a milieu <<< "${argv[5]},tout"
+		for m in "${milieu[@]}"
+		do
+			cat <<-EOF >> /vagrant/dimproduits.sql
+				INSERT INTO "dim" VALUES("$m","$n");
+				EOF
+		done
 	done
 	cat <<-EOF >> /tmp/mc/mapcache-produit.xml
 		<service type="wmts" enabled="true"/>
@@ -309,6 +322,9 @@ Vagrant.configure("2") do |config|
 		<log_level>debug</log_level>
 		<threaded_fetching>true</threaded_fetching>
 		</mapcache>
+		EOF
+	cat <<-EOF >> /vagrant/dimproduits.sql
+		COMMIT;
 		EOF
 
 	# Mise en place d'une page de navigation pour afficher les couches
