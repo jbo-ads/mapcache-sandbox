@@ -229,9 +229,9 @@ Vagrant.configure("2") do |config|
 	sed -i '/^LogLevel/s/ mapcache:[a-z0-9]*//' /etc/apache2/apache2.conf
 	sed -i '/^LogLevel/s/$/ mapcache:debug/' /etc/apache2/apache2.conf
 	apachectl -k stop
-	sleep 1
+	sleep 2
 	apachectl -k start
-	sleep 1
+	sleep 2
 
 	# mapcache-produits: Création de produits simulés et réglages correspondants
 	# dans MapCache
@@ -250,7 +250,7 @@ Vagrant.configure("2") do |config|
 		EOF
 	cat <<-EOF > /vagrant/produits/produits.js
 		var produits = new ol.layer.Group({
-		title: 'Produits unitaires', fold: 'open' });
+		title: 'Produits unitaires', fold: 'close' });
 		var milieux = new ol.layer.Group({
 		title: 'Produits par milieux', fold: 'open' });
 		var chapeau = new ol.layer.Group({
@@ -267,7 +267,10 @@ Vagrant.configure("2") do |config|
 		somme:180903:6483586:vertical:terrestris-osm:littoral \
 		ossau:-49211:5288978:vertical:terrestris-srtm30-color-hillshade:montagne \
 		gourette:-37017:5305633:horizontal:terrestris-srtm30-hillshade:montagne \
-		larhune:-182061:5359134:horizontal:terrestris-osm:montagne,littoral
+		larhune:-182061:5359134:horizontal:terrestris-osm:montagne,littoral \
+		paris:261398:6250048:carre:terrestris-osm:ville \
+		zurich:951019:6002165:carre:terrestris-osm:montagne,ville \
+		newyork:-8230858:4983630:vertical:terrestris-osm:ville,littoral
 	do
 		IFS=':' read -a argv <<< "$prod"
 		n=${argv[0]}
@@ -289,7 +292,15 @@ Vagrant.configure("2") do |config|
 		height=$(echo 256 $h *pq | dc)
 		pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
 		url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=$c"
-		curl "$url" > /vagrant/produits/${n}.jpg 2>/dev/null
+		while true
+		do
+			curl "$url" > /vagrant/produits/${n}.jpg 2>/dev/null
+			if file /vagrant/produits/${n}.jpg | grep -q -v XML
+			then
+				break
+			fi
+			echo Erreur:${n} >&2
+		done
 		gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
 			/vagrant/produits/${n}.jpg /vagrant/produits/${n}.tif
 		cp /vagrant/produits/${n}.tif /tmp/mc/produit/tiff
@@ -373,15 +384,15 @@ Vagrant.configure("2") do |config|
 	# Relance d'Apache pour la prise en compte des nouveaux réglages de MapCache
 	chown -R vagrant:vagrant /tmp/mc
 	apachectl -k stop
-	sleep 1
+	sleep 2
 	apachectl -k start
-	sleep 1
+	sleep 2
 
 	# Remplissage des caches des produits simulés
 	for produit in $(sqlite3 /tmp/mc/produit/dimproduits.sqlite 'select distinct(produit) from dim')
 	do
-		ll=$(gdalinfo /tmp/mc/produit/tiff/$produit.tif | awk '/Lower Left/{print $4$5}' | sed 's/)//')
-		ur=$(gdalinfo /tmp/mc/produit/tiff/$produit.tif | awk '/Upper Right/{print $4$5}' | sed 's/)//')
+		ll=$(gdalinfo /tmp/mc/produit/tiff/$produit.tif | sed 's/[)(]//g' | awk '/Lower Left/{print $3$4}')
+		ur=$(gdalinfo /tmp/mc/produit/tiff/$produit.tif | sed 's/[)(]//g' | awk '/Upper Right/{print $3$4}')
 		mapcache_seed -c /tmp/mc/mapcache-produit.xml -e $ll,$ur -g GoogleMapsCompatible -t ${produit} -z 0,12
 	done
 
@@ -461,9 +472,8 @@ Vagrant.configure("2") do |config|
 		var terrestris = new ol.layer.Group({
 		title: 'Terrestris',
 		fold: 'open',
-		layers: [ terrestris_osm, terrestris_topo, terrestris_topo_osm,
-		terrestris_srtm30_color, terrestris_srtm30_hillshade,
-		terrestris_srtm30_color_hillshade ]
+		layers: [ terrestris_srtm30_color_hillshade, terrestris_srtm30_hillshade,
+		terrestris_srtm30_color, terrestris_topo_osm, terrestris_topo, terrestris_osm ]
 		});
 		var gibs_bluemarble = new ol.layer.Tile({
 		title: 'Blue Marble (GIBS)', type: 'base', visible: false,
@@ -497,6 +507,11 @@ Vagrant.configure("2") do |config|
 	systemctl start elasticsearch.service
 	curl -s -XDELETE "http://localhost:9200/dim"
 	curl -s "http://localhost:9200/"
+	for i in $(sqlite3 /tmp/mc/produit/dimproduits.sqlite 'SELECT * FROM dim' \
+		| awk -F'|' '{print "{\\"milieu\\":\\""$1"\\",\\"produit\\":\\""$2"\\"}"}')
+	do
+		curl -s -XPOST -H "Content-Type: application/json" "http://localhost:9200/dim/_doc" -d "$i"
+	done
 
 	SHELL
 end
