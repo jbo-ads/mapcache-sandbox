@@ -216,6 +216,30 @@ Vagrant.configure("2") do |config|
 		<grid>GoogleMapsCompatible</grid>
 		<format>PNG</format>
 		</tileset>
+		<!-- stamen-terrain -->
+		<cache name="stamen-terrain" type="rest">
+		<url>http://tile.stamen.com/terrain/{z}/{x}/{inv_y}.png</url>
+		</cache>
+		<tileset name="stamen-terrain">
+		<cache>stamen-terrain</cache>
+		<grid>GoogleMapsCompatible</grid>
+		</tileset>
+		<!-- stamen-toner -->
+		<cache name="stamen-toner" type="rest">
+		<url>http://tile.stamen.com/toner/{z}/{x}/{inv_y}.png</url>
+		</cache>
+		<tileset name="stamen-toner">
+		<cache>stamen-toner</cache>
+		<grid>GoogleMapsCompatible</grid>
+		</tileset>
+		<!-- stamen-watercolor -->
+		<cache name="stamen-watercolor" type="rest">
+		<url>http://tile.stamen.com/watercolor/{z}/{x}/{inv_y}.jpg</url>
+		</cache>
+		<tileset name="stamen-watercolor">
+		<cache>stamen-watercolor</cache>
+		<grid>GoogleMapsCompatible</grid>
+		</tileset>
 		<service type="wmts" enabled="true"/>
 		<service type="wms" enabled="true"/>
 		<log_level>debug</log_level>
@@ -268,9 +292,9 @@ Vagrant.configure("2") do |config|
 		ossau:-49211:5288978:vertical:terrestris-srtm30-color-hillshade:montagne \
 		gourette:-37017:5305633:horizontal:terrestris-srtm30-hillshade:montagne \
 		larhune:-182061:5359134:horizontal:terrestris-osm:montagne,littoral \
-		paris:261398:6250048:carre:terrestris-osm:ville \
-		zurich:951019:6002165:carre:terrestris-osm:montagne,ville \
-		newyork:-8230858:4983630:vertical:terrestris-osm:ville,littoral
+		paris:261398:6250048:carre:stamen-toner:ville \
+		zurich:951019:6002165:carre:stamen-terrain:montagne,ville \
+		newyork:-8230858:4983630:vertical:stamen-watercolor:ville,littoral
 	do
 		IFS=':' read -a argv <<< "$prod"
 		n=${argv[0]}
@@ -344,14 +368,22 @@ Vagrant.configure("2") do |config|
 	for milieu in $(sqlite3 /tmp/mc/produit/dimproduits.sqlite 'select distinct(milieu) from dim')
 	do
 		cat <<-EOF >> /vagrant/produits/produits.js
-			var $n = new ol.layer.Tile({
-			title: '$milieu',
+			var $milieu = new ol.layer.Tile({
+			title: '$milieu (SQLite)',
 			type: 'base', visible: false,
 			source: new ol.source.TileWMS({
 			url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
 			params: {'LAYERS': 'produits', 'VERSION': '1.1.1'}
 			}) });
-			milieux.getLayers().push($n);
+			milieux.getLayers().push($milieu);
+			var ${milieu}_es = new ol.layer.Tile({
+			title: '$milieu (ElasticSearch)',
+			type: 'base', visible: false,
+			source: new ol.source.TileWMS({
+			url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+			params: {'LAYERS': 'produits-es', 'VERSION': '1.1.1'}
+			}) });
+			milieux.getLayers().push(${milieu}_es);
 			EOF
 	done
 	cat <<-EOF >> /tmp/mc/mapcache-produit.xml
@@ -371,6 +403,38 @@ Vagrant.configure("2") do |config|
 		<dbfile>/tmp/mc/produit/dimproduits.sqlite</dbfile>
 		<validate_query>select produit from dim where milieu=:dim</validate_query>
 		<list_query> select distinct(produit) from dim</list_query>
+		</dimension>
+		</dimensions>
+		</tileset>
+		<tileset name="produits-es">
+		<cache>produits</cache>
+		<grid>GoogleMapsCompatible</grid>
+		<format>PNG</format>
+		<dimensions>
+		<assembly_type>stack</assembly_type>
+		<store_assemblies>false</store_assemblies> 
+		<dimension name="milieu" default="tout" type="elasticsearch">
+		<http>
+		<url>http://localhost:9200/dim/_search</url>
+		<headers>
+		<Content-Type>application/json</Content-Type>
+		</headers>
+		</http>
+		<validate_query><![CDATA[ {
+		"size": 0,
+		"aggs": { "items": { "terms": { "field": "produit.keyword" } } },
+		"query": { "term": { "milieu": ":dim" } }
+		} ]]></validate_query>
+		<validate_response><![CDATA[
+		[ "aggregations", "items", "buckets", "key" ]
+		]]></validate_response>
+		<list_query><![CDATA[ {
+		"size": 0,
+		"aggs": { "items": { "terms": { "field": "produit.keyword" } } }
+		} ]]></list_query>
+		<list_response><![CDATA[
+		[ "aggregations", "items", "buckets", "key" ]
+		]]></list_response>
 		</dimension>
 		</dimensions>
 		</tileset>
@@ -471,7 +535,7 @@ Vagrant.configure("2") do |config|
 		}) });
 		var terrestris = new ol.layer.Group({
 		title: 'Terrestris',
-		fold: 'open',
+		fold: 'close',
 		layers: [ terrestris_srtm30_color_hillshade, terrestris_srtm30_hillshade,
 		terrestris_srtm30_color, terrestris_topo_osm, terrestris_topo, terrestris_osm ]
 		});
@@ -481,7 +545,30 @@ Vagrant.configure("2") do |config|
 		url: 'http://'+location.host+'/mapcache-source?',
 		params: {'LAYERS': 'gibs-bluemarble', 'VERSION': '1.1.1'}
 		}) });
-		var layers = [ chapeau, terrestris, gibs_bluemarble, sanity_check ];
+		var stamen_watercolor = new ol.layer.Tile({
+		title: 'Watercolor (Stamen)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'stamen-watercolor', 'VERSION': '1.1.1'}
+		}) });
+		var stamen_toner = new ol.layer.Tile({
+		title: 'Toner (Stamen)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'stamen-toner', 'VERSION': '1.1.1'}
+		}) });
+		var stamen_terrain = new ol.layer.Tile({
+		title: 'Terrain (Stamen)', type: 'base', visible: false,
+		source: new ol.source.TileWMS({
+		url: 'http://'+location.host+'/mapcache-source?',
+		params: {'LAYERS': 'stamen-terrain', 'VERSION': '1.1.1'}
+		}) });
+		var stamen = new ol.layer.Group({
+		title: 'Stamen',
+		fold: 'close',
+		layers: [ stamen_toner, stamen_terrain, stamen_watercolor ]
+		});
+		var layers = [ chapeau, terrestris, stamen, gibs_bluemarble, sanity_check ];
 		var map = new ol.Map({ target: 'map', layers: layers, view: view });
 		map.addControl(new ol.control.LayerSwitcher());
 		</script>
