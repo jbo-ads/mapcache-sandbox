@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
 	cd /vagrant
 	test -d mapcache || git clone https://github.com/jbo-ads/mapcache.git
 	cd mapcache
-	git checkout master
+	git checkout es-staging
 	rm -rf build
 	mkdir build
 	cd build
@@ -294,7 +294,10 @@ Vagrant.configure("2") do |config|
 		larhune:-182061:5359134:horizontal:terrestris-osm:montagne,littoral \
 		paris:261398:6250048:carre:stamen-toner:ville \
 		zurich:951019:6002165:carre:stamen-terrain:montagne,ville \
-		newyork:-8230858:4983630:vertical:stamen-watercolor:ville,littoral
+		newyork:-8230858:4983630:vertical:stamen-watercolor:ville,littoral \
+		pise:1157348:5422676:horizontal:stamen-watercolor:ville,littoral \
+		florence:1252274:5430634:vertical:terrestris-osm:ville \
+		sienne:1261495:5360547:horizontal:stamen-terrain:ville
 	do
 		IFS=':' read -a argv <<< "$prod"
 		n=${argv[0]}
