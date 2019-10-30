@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
 	cd /vagrant
 	test -d mapcache || git clone https://github.com/jbo-ads/mapcache.git
 	cd mapcache
-	git checkout es-staging
+	git checkout apache-profiling
 	rm -rf build
 	mkdir build
 	cd build
@@ -425,7 +425,7 @@ Vagrant.configure("2") do |config|
 		</http>
 		<validate_query><![CDATA[ {
 		"size": 0,
-		"aggs": { "items": { "terms": { "field": "produit.keyword" } } },
+		"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
 		"query": { "term": { "milieu": ":dim" } }
 		} ]]></validate_query>
 		<validate_response><![CDATA[
@@ -433,7 +433,7 @@ Vagrant.configure("2") do |config|
 		]]></validate_response>
 		<list_query><![CDATA[ {
 		"size": 0,
-		"aggs": { "items": { "terms": { "field": "produit.keyword" } } }
+		"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
 		} ]]></list_query>
 		<list_response><![CDATA[
 		[ "aggregations", "items", "buckets", "key" ]
