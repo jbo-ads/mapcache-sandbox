@@ -38,7 +38,7 @@ linepattern = ( '\[(.*?) (.*?) (.*?) (.*?):(.*?):(.*?) (.*?)\] '
                 + '\[(.*?)\] '
                 + '\[(.*?) (.*?):(.*?) (.*?)\] '
                 + '(.*?): '
-                + '(.*?) (DEBUGJBO) (.*?) (.*?)[, ](.*?)[, ](.*)' )
+                + '(.*?) (DEBUGJBO) (.*?) ([^ ,\n]*)( )?([^ ,\n]*)?(, .*?)?' )
 logbyptid = {}
 for line in sys.stdin:
   try:
@@ -48,7 +48,7 @@ for line in sys.stdin:
       'ptid': s[9]+':'+s[11],
       'type': s[15],
       'func': s[16],
-      'sub': s[17],
+      'sub': s[18],
     }
     if ( log['func'] == 'mapcache_handler' and log['type'] == 'BEGIN'
          and log['time'] > args.start and log['time'] < args.stop ):
