@@ -50,8 +50,10 @@ for line in sys.stdin:
       'func': s[16],
       'sub': s[18],
     }
-    if ( log['func'] == 'mapcache_handler' and log['type'] == 'BEGIN'
-         and log['time'] > args.start and log['time'] < args.stop ):
+    if ( log['func'] in [ 'mapcache_handler', '_thread_get_tile' ]
+         and log['type'] == 'BEGIN'
+         and log['time'] > args.start
+         and log['time'] < args.stop ):
       logbyptid[log['ptid']] = [ ]
     try:
       logbyptid[log['ptid']].append(log)
@@ -62,6 +64,9 @@ for line in sys.stdin:
       if log['type'] == 'OUT':
         try:
           l = [ l for l in seq if l['type'] == 'IN' and l['func'] == log['func'] and l['sub'] == log['sub'] ][0]
+        except IndexError:
+          pass
+        else:
           log['delta_us'] = int(.5+1e6*(log['time']-l['time']))
           l['delta_us'] = log['delta_us']
           l['type'] = '*IN*'
@@ -76,55 +81,59 @@ for line in sys.stdin:
             statsub['mean'] = statsub['s'] / statsub['n']
             statsub['variance'] = statsub['s2'] / statsub['n'] - statsub['mean']*statsub['mean']
             statsub['stddev'] = sqrt(abs(statsub['variance']))
+      if log['type'] == 'END':
+        try:
+          l = [ l for l in seq if l['type'] == 'BEGIN' and l['func'] == log['func'] ][0]
         except IndexError:
           pass
-      if log['type'] == 'END':
-        l = [ l for l in seq if l['type'] == 'BEGIN' and l['func'] == log['func'] ][0]
-        log['delta_us'] = int(.5+1e6*(log['time']-l['time']))
-        l['delta_us'] = log['delta_us']
-        l['type'] = '*BEGIN*'
-        log['type'] = '*END*'
-        if args.statfunc and log['func'] == args.statfunc:
-          x = log['delta_us']
-          statfunc['n'] = statfunc['n'] + 1
-          statfunc['s'] = statfunc['s'] + x
-          statfunc['s2'] = statfunc['s2'] + x*x
-          if x < statfunc['min']: statfunc['min'] = x
-          if x > statfunc['max']: statfunc['max'] = x
-          statfunc['mean'] = statfunc['s'] / statfunc['n']
-          statfunc['variance'] = statfunc['s2'] / statfunc['n'] - statfunc['mean']*statfunc['mean']
-          statfunc['stddev'] = sqrt(abs(statfunc['variance']))
-        if log['func'] == 'mapcache_handler' and log['delta_us'] > args.dmin and log['delta_us'] < args.dmax:
-          if args.log:
-            print(log['ptid'],':')
-          indent = 1
-          for l in seq:
-            try:
-              delta = l['delta_us']
-            except KeyError:
-              delta = '-'
-            k = {
-              'time': l['time'],
-              'delta_us': delta,
-              'type': l['type'],
-              'func': l['func'],
-              'sub': l['sub'],
-            }
-            if k['type'] == '*END*': indent = indent - 1
-            if k['type'] == '*OUT*': indent = indent - 1
+        else:
+          log['delta_us'] = int(.5+1e6*(log['time']-l['time']))
+          l['delta_us'] = log['delta_us']
+          l['type'] = '*BEGIN*'
+          log['type'] = '*END*'
+          if args.statfunc and log['func'] == args.statfunc:
+            x = log['delta_us']
+            statfunc['n'] = statfunc['n'] + 1
+            statfunc['s'] = statfunc['s'] + x
+            statfunc['s2'] = statfunc['s2'] + x*x
+            if x < statfunc['min']: statfunc['min'] = x
+            if x > statfunc['max']: statfunc['max'] = x
+            statfunc['mean'] = statfunc['s'] / statfunc['n']
+            statfunc['variance'] = statfunc['s2'] / statfunc['n'] - statfunc['mean']*statfunc['mean']
+            statfunc['stddev'] = sqrt(abs(statfunc['variance']))
+          if ( log['func'] in [ 'mapcache_handler', '_thread_get_tile' ]
+               and log['delta_us'] > args.dmin
+               and log['delta_us'] < args.dmax ):
             if args.log:
-              if args.hasindent:
-                print('  '*indent,k)
-              else:
-                print(k)
-            if k['type'] == '*IN*': indent = indent + 1
-            if k['type'] == '*BEGIN*': indent = indent + 1
-          if args.statfunc:
-            print(args.statfunc,':',statfunc)
-          if args.statsub:
-            print(args.statsub,':',statsub)
-          if args.log:
-            print('')
+              print(log['ptid'],':')
+            indent = 1
+            for l in seq:
+              try:
+                delta = l['delta_us']
+              except KeyError:
+                delta = '-'
+              k = {
+                'time': l['time'],
+                'delta_us': delta,
+                'type': l['type'],
+                'func': l['func'],
+                'sub': l['sub'],
+              }
+              if k['type'] == '*END*': indent = indent - 1
+              if k['type'] == '*OUT*': indent = indent - 1
+              if args.log:
+                if args.hasindent:
+                  print('  '*indent,k)
+                else:
+                  print(k)
+              if k['type'] == '*IN*': indent = indent + 1
+              if k['type'] == '*BEGIN*': indent = indent + 1
+            if args.statfunc:
+              print(args.statfunc,':',statfunc)
+            if args.statsub:
+              print(args.statsub,':',statsub)
+            if args.log:
+              print('')
   except AttributeError:
     pass
 
