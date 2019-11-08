@@ -166,8 +166,8 @@ Vagrant.configure("2") do |config|
 			<source name="global-tif" type="gdal">
 				<data>/vagrant/caches/world.tif</data>
 			</source>
-			<cache name="disk" type="disk">
-				<base>/vagrant/caches</base>
+			<cache name="disk" type="disk" layout="template">
+				<template>/vagrant/caches/test/{z}/{y}/{x}.jpg</template>
 			</cache>
 			<tileset name="global">
 				<cache>disk</cache>
@@ -240,7 +240,8 @@ Vagrant.configure("2") do |config|
 		"GIBS&Blue Marble - Relief&https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?&BlueMarble_ShadedRelief_Bathymetry" \
 		"GIBS&Earth at Night&https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?&VIIRS_CityLights_2012" \
 		"ESRI&World Imagery&https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{inv_y}/{x}&<rest>" \
-		"NOAA&Dark Gray&https://server.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{inv_y}/{x}&<rest>"
+		"NOAA&Dark Gray&https://server.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{inv_y}/{x}&<rest>" \
+                "AJAston&Pirate Map&http://d.tiles.mapbox.com/v3/aj.Sketchy2/{z}/{x}/{inv_y}.png&<rest maxzoom:6>"
 	do
 		IFS='&' read provider name url layer <<< "${source}"
 		lprovider=$(tr [:upper:] [:lower:] <<< ${provider})
@@ -269,7 +270,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_source_${lprovider}.getLayers().array_.unshift(${jslayer});
 			EOF
-		if grep -q -v "<rest>" <<< "${layer}"
+		if grep -q -v "<rest" <<< "${layer}"
 		then
 			cat <<-EOF >> /vagrant/caches/mapcache-source.xml
 				<!-- ${mclayer} -->
@@ -374,9 +375,10 @@ Vagrant.configure("2") do |config|
 		andorre:169396:5237260:carre:esri-worldimagery:montagne \
 		istanbul:3226039:5013592:horizontal:esri-worldimagery:ville,littoral \
 		samos:3007574:4538268:horizontal:stamen-watercolor:littoral \
-		ephese:3043770:4571106:horizontal:stamen-terrain:archeologie,littoral \
-		athenes:2641238:4575402:vertical:terrestris-osm:ville,archeologie,littoral \
-		persepolis:5887633:3495213:carre:esri-worldimagery:archeologie,desert \
+		ephese:3043770:4571106:horizontal:stamen-terrain:littoral \
+		athenes:2641238:4575402:vertical:terrestris-osm:ville,littoral \
+		persepolis:5887633:3495213:carre:esri-worldimagery:desert \
+		bam:6497415:3390004:carre:esri-worldimagery:desert \
 		vienne:1822648:6141610:carre:stamen-toner:ville \
 		prague:1604255:6461268:horizontal:terrestris-osm:ville \
 		pise:1157348:5422676:horizontal:stamen-watercolor:ville,littoral \
@@ -459,6 +461,91 @@ Vagrant.configure("2") do |config|
 				EOF
 		done
 	done
+	# Création aléatoire de produits dans des étendues données
+	for bbox in \
+		"chine,9000000,2800000,13000000,5500000" \
+		"amazonie,-7800000,-3300000,-5400000,-100000"
+	do
+		IFS=',' read nom xmin ymin xmax ymax <<< "$bbox"
+		xmin=$(tr '-' '_' <<< "${xmin}")
+		ymin=$(tr '-' '_' <<< "${ymin}")
+		xmax=$(tr '-' '_' <<< "${xmax}")
+		ymax=$(tr '-' '_' <<< "${ymax}")
+		if [ $(find /vagrant/caches -name "${nom}_*.sqlite3" | wc -l) -ge 20 ]
+		then
+			continue
+		fi
+		for count in $(seq 1 3)
+		do
+			x=$(dc <<< "20k $xmax $xmin - $RANDOM 32768/* $xmin+p" | tr '-' '_')
+			y=$(dc <<< "20k $ymax $ymin - $RANDOM 32768/* $ymin+p" | tr '-' '_')
+			#  1. Récupération d'une image JPG depuis une source
+			n=${nom}_$(uuidgen | tr '-' '_')
+			l=19567.88
+			w=5
+			h=5
+			d=${nom}
+			c=esri-worldimagery
+			minx=$(echo "2k $x $l $w 2/*-pq" | dc)
+			miny=$(echo "2k $y $l $h 2/*-pq" | dc)
+			maxx=$(echo "2k $x $l $w 2/*+pq" | dc)
+			maxy=$(echo "2k $y $l $h 2/*+pq" | dc)
+			width=$(echo 256 $w *pq | dc)
+			height=$(echo 256 $h *pq | dc)
+			pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
+			url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=${c}"
+			while true
+			do
+				curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
+				if file /vagrant/caches/produit/image/${n}.jpg | grep -q -v XML
+				then
+					break
+				fi
+				echo Erreur:${n} nouvel essai >&2
+			done
+			# 2. Conversion du JPG en GeoTiff
+			gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
+				/vagrant/caches/produit/image/${n}.jpg /vagrant/caches/produit/image/${n}.tif
+			# 3. Création d'une configuration MapCache pour préparer la conversion en cache
+			cat <<-EOF > /vagrant/caches/mapcache-alea.xml
+				<?xml version="1.0" encoding="UTF-8"?>
+				<mapcache>
+					<source name="${n}" type="gdal">
+						<data>/vagrant/caches/produit/image/${n}.tif</data>
+					</source>
+					<cache name="${n}" type="sqlite3">
+						<dbfile>/vagrant/caches/produit/${n}.sqlite3</dbfile>
+					</cache>
+					<tileset name="${n}">
+						<source>${n}</source>
+						<cache>${n}</cache>
+						<grid>GoogleMapsCompatible</grid>
+						<format>PNG</format>
+					</tileset>
+					<service type="wmts" enabled="true"/>
+					<service type="wms" enabled="true"/>
+					<log_level>debug</log_level>
+					<threaded_fetching>true</threaded_fetching>
+				</mapcache>
+				EOF
+			# 4. Conversion du GeoTiff en cache SQLite
+			ll=$(gdalinfo /vagrant/caches/produit/image/${n}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Lower Left/{print $3$4}')
+			ur=$(gdalinfo /vagrant/caches/produit/image/${n}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Upper Right/{print $3$4}')
+			mapcache_seed -c /vagrant/caches/mapcache-alea.xml -e $ll,$ur -g GoogleMapsCompatible -t ${n} -z 0,12
+			# 5. Ajout du cache dans les dimensions
+			IFS=',' read -a milieu <<< "${d},tout"
+			for m in "${milieu[@]}"
+			do
+				sqlite3 /vagrant/caches/produit/dimproduits.sqlite <<-EOF
+					BEGIN TRANSACTION;
+					INSERT OR IGNORE INTO dim(milieu,produit) VALUES("${m}","${n}");
+					COMMIT;
+					EOF
+			done
+		done
+	done
+	apachectl -k stop
+	sleep 2
 	cat <<-EOF >> /vagrant/caches/mapcache-produit-unitaire.xml
 			<service type="wmts" enabled="true"/>
 			<service type="wms" enabled="true"/>
@@ -471,26 +558,20 @@ Vagrant.configure("2") do |config|
 	do
 		curl -s -XPOST -H "Content-Type: application/json" "http://localhost:9200/dim/_doc" -d "$i"
 	done
-	apachectl -k stop
-	sleep 2
 	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-produit-unitaire.conf
 		<IfModule mapcache_module>
 			MapCacheAlias "/mapcache-produit-unitaire" "/vagrant/caches/mapcache-produit-unitaire.xml"
 		</IfModule>
 		EOF
-	apachectl -k start
-	sleep 2
 	for produit in $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'select distinct(produit) from dim')
 	do
 		if [ ! -f /vagrant/caches/produit/${produit}.sqlite3 ]
 		then
-			ll=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g' | awk '/Lower Left/{print $3$4}')
-			ur=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g' | awk '/Upper Right/{print $3$4}')
+			ll=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Lower Left/{print $3$4}')
+			ur=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Upper Right/{print $3$4}')
 			mapcache_seed -c /vagrant/caches/mapcache-produit-unitaire.xml -e $ll,$ur -g GoogleMapsCompatible -t ${produit} -z 0,12
 		fi
 	done
-	apachectl -k stop
-	sleep 2
 	for milieu in $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'SELECT DISTINCT(milieu) FROM dim')
 	do
 		cat <<-EOF >> /var/www/html/mapcache-sandbox-browser/mapcache-produit.js
