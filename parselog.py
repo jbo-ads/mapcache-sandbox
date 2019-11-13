@@ -50,7 +50,7 @@ for line in sys.stdin:
       'func': s[16],
       'sub': s[18],
     }
-    if ( log['func'] in [ 'mapcache_handler', '_thread_get_tile' ]
+    if ( log['func'] in [ 'mapcache_handler', '_thread_get_tile', '_thread_get_subtile' ]
          and log['type'] == 'BEGIN'
          and log['time'] > args.start
          and log['time'] < args.stop ):
@@ -101,7 +101,7 @@ for line in sys.stdin:
             statfunc['mean'] = statfunc['s'] / statfunc['n']
             statfunc['variance'] = statfunc['s2'] / statfunc['n'] - statfunc['mean']*statfunc['mean']
             statfunc['stddev'] = sqrt(abs(statfunc['variance']))
-          if ( log['func'] in [ 'mapcache_handler', '_thread_get_tile' ]
+          if ( log['func'] in [ 'mapcache_handler', '_thread_get_tile', '_thread_get_subtile' ]
                and log['delta_us'] > args.dmin
                and log['delta_us'] < args.dmax ):
             if args.log:

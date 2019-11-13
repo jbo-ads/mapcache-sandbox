@@ -227,6 +227,16 @@ Vagrant.configure("2") do |config|
 		layers.unshift(mapcache_source)
 		EOF
 	for source in \
+		"HeiGIT&OSM&https://maps.heigit.org/osm-wms/service?&osm_auto:all" \
+		"HeiGIT&Nature&https://maps.heigit.org/osm-wms/service?&osm_auto:naturals_z9_to_0" \
+		"HeiGIT&Hillshade&https://maps.heigit.org/osm-wms/service?&europe_wms:hs_srtm_europa" \
+		"Mundialis&OSM&http://ows.mundialis.de/services/service?&OSM-WMS" \
+		"Mundialis&Topo&http://ows.mundialis.de/services/service?&TOPO-WMS" \
+		"Mundialis&Topo-OSM&http://ows.mundialis.de/services/service?&TOPO-OSM-WMS" \
+		"Mundialis&SRTM30-Color&http://ows.mundialis.de/services/service?&SRTM30-Colored" \
+		"Mundialis&SRTM30-Hillshade&http://ows.mundialis.de/services/service?&SRTM30-Hillshade" \
+		"Mundialis&SRTM30-Color-Hillshade&http://ows.mundialis.de/services/service?&SRTM30-Colored-Hillshade" \
+		"Mundialis&SRTM30-Contour&http://ows.mundialis.de/services/service?&SRTM30-Contour" \
 		"Terrestris&OSM&http://ows.terrestris.de/osm/service?&OSM-WMS" \
 		"Terrestris&Topo&http://ows.terrestris.de/osm/service?&TOPO-WMS" \
 		"Terrestris&Topo-OSM&http://ows.terrestris.de/osm/service?&TOPO-OSM-WMS" \
@@ -281,22 +291,33 @@ Vagrant.configure("2") do |config|
 						<layers>${layer}</layers>
 					</params></getmap>
 				</source>
-				<cache name="${mclayer}" type="sqlite3">
-					<dbfile>/vagrant/caches/source/${mclayer}.sqlite3</dbfile>
-				</cache>
-				<tileset name="${mclayer}">
-					<source>${mclayer}</source>
-					<format>PNG</format>
 				EOF
 		else
 			cat <<-EOF >> /vagrant/caches/mapcache-source.xml
-				<cache name="${mclayer}" type="rest">
+				<!-- ${mclayer} -->
+				<cache name="remote-${mclayer}" type="rest">
 					<url>${url}</url>
 				</cache>
-				<tileset name="${mclayer}">
+				<tileset name="remote-${mclayer}">
+					<cache>remote-${mclayer}</cache>
+					<grid>GoogleMapsCompatible</grid>
+				</tileset>
+				<source name="${mclayer}" type="wms">
+					<http><url>http://localhost:80/mapcache-source?</url></http>
+					<getmap><params>
+						<format>image/png</format>
+						<layers>remote-${mclayer}</layers>
+					</params></getmap>
+				</source>
 				EOF
 		fi
 		cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+			<cache name="${mclayer}" type="sqlite3">
+				<dbfile>/vagrant/caches/source/${mclayer}.sqlite3</dbfile>
+			</cache>
+			<tileset name="${mclayer}">
+				<source>${mclayer}</source>
+				<format>PNG</format>
 				<cache>${mclayer}</cache>
 				<grid>GoogleMapsCompatible</grid>
 			</tileset>
@@ -304,7 +325,9 @@ Vagrant.configure("2") do |config|
 	done
 	cat <<-EOF >> /vagrant/caches/mapcache-source.xml
 			<service type="wmts" enabled="true"/>
-			<service type="wms" enabled="true"/>
+			<service type="wms" enabled="true">
+			<maxsize>4096</maxsize>
+			</service>
 			<log_level>debug</log_level>
 			<threaded_fetching>true</threaded_fetching>
 		</mapcache>
@@ -358,17 +381,17 @@ Vagrant.configure("2") do |config|
 		mapcache_produit.getLayers().array_.unshift(mapcache_produit_unitaire);
 		EOF
 	for prod in \
-		arcachon:-119075:5565095:carre:terrestris-osm:littoral \
-		laruns:-47548:5310224:horizontal:terrestris-osm:montagne \
-		somme:180903:6483586:vertical:terrestris-osm:littoral \
-		ossau:-49211:5288978:vertical:terrestris-srtm30-color-hillshade:montagne \
-		gourette:-37017:5305633:horizontal:terrestris-srtm30-hillshade:montagne \
-		larhune:-182061:5359134:horizontal:terrestris-osm:montagne,littoral \
+		arcachon:-119075:5565095:carre:mundialis-osm:littoral \
+		laruns:-47548:5310224:horizontal:mundialis-osm:montagne \
+		somme:180903:6483586:vertical:mundialis-osm:littoral \
+		ossau:-49211:5288978:vertical:mundialis-srtm30-color-hillshade:montagne \
+		gourette:-37017:5305633:horizontal:mundialis-srtm30-hillshade:montagne \
+		larhune:-182061:5359134:horizontal:mundialis-osm:montagne,littoral \
 		paris:261398:6250048:carre:stamen-toner:ville \
 		zurich:951019:6002165:carre:stamen-terrain:montagne,ville \
 		newyork:-8230858:4983630:vertical:stamen-watercolor:ville,littoral \
 		sanantonio:-10963423:3429943:horizontal:esri-worldimagery:ville \
-		minneapolis:-10379828:5616929:horizontal:terrestris-osm:ville \
+		minneapolis:-10379828:5616929:horizontal:mundialis-osm:ville \
 		coimbra:-938061:4896085:vertical:stamen-terrain:ville \
 		lisbonne:-1012288:4687682:vertical:stamen-watercolor:ville,littoral \
 		barcelone:242054:5072037:carre:noaa-darkgray:ville,littoral \
@@ -376,13 +399,13 @@ Vagrant.configure("2") do |config|
 		istanbul:3226039:5013592:horizontal:esri-worldimagery:ville,littoral \
 		samos:3007574:4538268:horizontal:stamen-watercolor:littoral \
 		ephese:3043770:4571106:horizontal:stamen-terrain:littoral \
-		athenes:2641238:4575402:vertical:terrestris-osm:ville,littoral \
+		athenes:2641238:4575402:vertical:mundialis-osm:ville,littoral \
 		persepolis:5887633:3495213:carre:esri-worldimagery:desert \
 		bam:6497415:3390004:carre:esri-worldimagery:desert \
 		vienne:1822648:6141610:carre:stamen-toner:ville \
-		prague:1604255:6461268:horizontal:terrestris-osm:ville \
+		prague:1604255:6461268:horizontal:mundialis-osm:ville \
 		pise:1157348:5422676:horizontal:stamen-watercolor:ville,littoral \
-		florence:1252274:5430634:vertical:terrestris-osm:ville \
+		florence:1252274:5430634:vertical:mundialis-osm:ville \
 		sienne:1261495:5360547:horizontal:stamen-terrain:ville
 	do
 		IFS=':' read -a argv <<< "$prod"
@@ -391,12 +414,12 @@ Vagrant.configure("2") do |config|
 		y=$(tr '-' '_' <<< ${argv[2]})
 		d=${argv[3]}
 		c=${argv[4]}
-		if [ $d == "carre" ]; then w=5;h=5;
-		elif [ $d == "horizontal" ]; then w=6;h=4;
-		elif [ $d == "vertical" ]; then w=4;h=6;
-		else w=3;h=3;
+		if [ $d == "carre" ]; then w=10;h=10;
+		elif [ $d == "horizontal" ]; then w=12;h=8;
+		elif [ $d == "vertical" ]; then w=8;h=12;
+		else w=6;h=6;
 		fi
-		l=19567.88
+		l=9783.94
 		minx=$(echo "2k $x $l $w 2/*-pq" | dc)
 		miny=$(echo "2k $y $l $h 2/*-pq" | dc)
 		maxx=$(echo "2k $x $l $w 2/*+pq" | dc)
@@ -411,6 +434,7 @@ Vagrant.configure("2") do |config|
 				then
 					pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
 					url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=$c"
+					retry=0
 					while true
 					do
 						curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
@@ -419,6 +443,8 @@ Vagrant.configure("2") do |config|
 							break
 						fi
 						echo Erreur:${n} nouvel essai >&2
+						sleep ${retry}
+						retry=$((retry+1))
 					done
 				fi
 				gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
@@ -466,6 +492,7 @@ Vagrant.configure("2") do |config|
 		"chine,9000000,2800000,13000000,5500000" \
 		"amazonie,-7800000,-3300000,-5400000,-100000"
 	do
+		break
 		IFS=',' read nom xmin ymin xmax ymax <<< "$bbox"
 		xmin=$(tr '-' '_' <<< "${xmin}")
 		ymin=$(tr '-' '_' <<< "${ymin}")
@@ -481,9 +508,9 @@ Vagrant.configure("2") do |config|
 			y=$(dc <<< "20k $ymax $ymin - $RANDOM 32768/* $ymin+p" | tr '-' '_')
 			#  1. Récupération d'une image JPG depuis une source
 			n=${nom}_$(uuidgen | tr '-' '_')
-			l=19567.88
-			w=5
-			h=5
+			l=9783.94
+			w=10
+			h=10
 			d=${nom}
 			c=esri-worldimagery
 			minx=$(echo "2k $x $l $w 2/*-pq" | dc)
@@ -494,6 +521,7 @@ Vagrant.configure("2") do |config|
 			height=$(echo 256 $h *pq | dc)
 			pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
 			url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=${c}"
+			retry=0
 			while true
 			do
 				curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
@@ -502,6 +530,8 @@ Vagrant.configure("2") do |config|
 					break
 				fi
 				echo Erreur:${n} nouvel essai >&2
+				sleep ${retry}
+				retry=$((retry+1))
 			done
 			# 2. Conversion du JPG en GeoTiff
 			gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
@@ -531,7 +561,8 @@ Vagrant.configure("2") do |config|
 			# 4. Conversion du GeoTiff en cache SQLite
 			ll=$(gdalinfo /vagrant/caches/produit/image/${n}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Lower Left/{print $3$4}')
 			ur=$(gdalinfo /vagrant/caches/produit/image/${n}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Upper Right/{print $3$4}')
-			mapcache_seed -c /vagrant/caches/mapcache-alea.xml -e $ll,$ur -g GoogleMapsCompatible -t ${n} -z 0,12
+			mapcache_seed -c /vagrant/caches/mapcache-alea.xml -e $ll,$ur -g GoogleMapsCompatible -t ${n} -z 0,13
+			sqlite3 /vagrant/caches/produit/${n}.sqlite3 'CREATE UNIQUE INDEX xyz ON tiles(x,y,z)'
 			# 5. Ajout du cache dans les dimensions
 			IFS=',' read -a milieu <<< "${d},tout"
 			for m in "${milieu[@]}"
@@ -569,7 +600,8 @@ Vagrant.configure("2") do |config|
 		then
 			ll=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Lower Left/{print $3$4}')
 			ur=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Upper Right/{print $3$4}')
-			mapcache_seed -c /vagrant/caches/mapcache-produit-unitaire.xml -e $ll,$ur -g GoogleMapsCompatible -t ${produit} -z 0,12
+			mapcache_seed -c /vagrant/caches/mapcache-produit-unitaire.xml -e $ll,$ur -g GoogleMapsCompatible -t ${produit} -z 0,13
+			sqlite3 /vagrant/caches/produit/${produit}.sqlite3 'CREATE UNIQUE INDEX xyz ON tiles(x,y,z)'
 		fi
 	done
 	for milieu in $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'SELECT DISTINCT(milieu) FROM dim')
@@ -671,6 +703,10 @@ Vagrant.configure("2") do |config|
 		EOF
 	apachectl -k start
 	sleep 2
+	for cache in /vagrant/caches/produit/*.sqlite3
+	do
+		sqlite3 ${cache} 'CREATE UNIQUE INDEX xyz ON tiles(x,y,z)'
+	done
 	MAPCACHE_PRODUIT
 
 end
