@@ -703,10 +703,6 @@ Vagrant.configure("2") do |config|
 		EOF
 	apachectl -k start
 	sleep 2
-	for cache in /vagrant/caches/produit/*.sqlite3
-	do
-		sqlite3 ${cache} 'CREATE UNIQUE INDEX xyz ON tiles(x,y,z)'
-	done
 	MAPCACHE_PRODUIT
 
 end
