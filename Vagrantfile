@@ -66,7 +66,7 @@ Vagrant.configure("2") do |config|
 	psql -U postgres -c 'CREATE DATABASE mapcache;'
 	systemctl enable elasticsearch.service
 	systemctl start elasticsearch.service
-	curl -s -XDELETE "http://localhost:9200/dim"
+	curl -s -XDELETE "http://localhost:9200/_all"
 	curl -s "http://localhost:9200/"
 	SERVICES
 
@@ -357,6 +357,10 @@ Vagrant.configure("2") do |config|
 		CREATE TABLE IF NOT EXISTS dim(
 			milieu TEXT,
 			produit TEXT,
+			minx REAL,
+			miny REAL,
+			maxx REAL,
+			maxy REAL,
 			UNIQUE(milieu,produit)
 		);
 		COMMIT;
@@ -482,7 +486,7 @@ Vagrant.configure("2") do |config|
 		do
 			sqlite3 /vagrant/caches/produit/dimproduits.sqlite <<-EOF
 				BEGIN TRANSACTION;
-				INSERT OR IGNORE INTO dim(milieu,produit) VALUES("${m}","${n}");
+				INSERT OR IGNORE INTO dim(milieu,produit,minx,miny,maxx,maxy) VALUES("${m}","${n}",${minx},${miny},${maxx},${maxy});
 				COMMIT;
 				EOF
 		done
@@ -569,7 +573,7 @@ Vagrant.configure("2") do |config|
 			do
 				sqlite3 /vagrant/caches/produit/dimproduits.sqlite <<-EOF
 					BEGIN TRANSACTION;
-					INSERT OR IGNORE INTO dim(milieu,produit) VALUES("${m}","${n}");
+					INSERT OR IGNORE INTO dim(milieu,produit,minx,miny,maxx,maxy) VALUES("${m}","${n}",${minx},${miny},${maxx},${maxy});
 					COMMIT;
 					EOF
 			done
@@ -585,7 +589,7 @@ Vagrant.configure("2") do |config|
 		</mapcache>
 		EOF
 	for i in $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'SELECT * FROM dim' \
-		| awk -F'|' '{print "{\\"milieu\\":\\""$1"\\",\\"produit\\":\\""$2"\\"}"}')
+		| awk -F'|' '{print "{\\"milieu\\":\\""$1"\\",\\"produit\\":\\""$2"\\",\\"minx\\":"$3",\\"miny\\":"$4",\\"maxx\\":"$5",\\"maxy\\":"$6"}"}')
 	do
 		curl -s -XPOST -H "Content-Type: application/json" "http://localhost:9200/dim/_doc" -d "$i"
 	done
@@ -651,7 +655,9 @@ Vagrant.configure("2") do |config|
 				<store_assemblies>false</store_assemblies>
 				<dimension name="milieu" default="tout" type="sqlite">
 					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim</validate_query>
+					<validate_query>select produit from dim where milieu=:dim
+								and minx &lt;= :maxx and maxx &gt;= :minx
+								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
 					<list_query> select distinct(produit) from dim</list_query>
 				</dimension>
 			</dimensions>
@@ -673,8 +679,13 @@ Vagrant.configure("2") do |config|
 					<validate_query><![CDATA[ {
 						"size": 0,
 						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
-						"query": { "term": { "milieu": ":dim" } }
-						} ]]></validate_query>
+						"query": { "bool" :{ "filter": [
+							{ "term" : { "milieu": ":dim" } },
+							{ "range": { "minx": { "lte": :maxx } } },
+							{ "range": { "maxx": { "gte": :minx } } },
+							{ "range": { "miny": { "lte": :maxy } } },
+							{ "range": { "maxy": { "gte": :miny } } }
+						] } } } ]]></validate_query>
 					<validate_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
 						]]></validate_response>
