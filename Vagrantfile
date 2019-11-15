@@ -614,7 +614,7 @@ Vagrant.configure("2") do |config|
 	do
 		cat <<-EOF >> /var/www/html/mapcache-sandbox-browser/mapcache-produit.js
 			var ${milieu} = new ol.layer.Tile({
-				title: '${milieu^} (SQLite sans index, sans requête géographique)',
+				title: '${milieu^} (SQLite sans index, sans requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -624,7 +624,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu});
 			var ${milieu}_geo = new ol.layer.Tile({
-				title: '${milieu^} (SQLite sans index, avec requête géographique)',
+				title: '${milieu^} (SQLite sans index, avec requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -634,7 +634,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_geo);
 			var ${milieu}_i = new ol.layer.Tile({
-				title: '${milieu^} (SQLite avec index, sans requête géographique)',
+				title: '${milieu^} (SQLite avec index, sans requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -644,7 +644,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i);
 			var ${milieu}_i_geo = new ol.layer.Tile({
-				title: '${milieu^} (SQLite avec index, avec requête géographique)',
+				title: '${milieu^} (SQLite avec index, avec requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -653,8 +653,48 @@ Vagrant.configure("2") do |config|
 				})
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_geo);
+			var ${milieu}_map = new ol.layer.Tile({
+				title: '${milieu^} (SQLite sans index, sans requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-map', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_map);
+			var ${milieu}_geo_map = new ol.layer.Tile({
+				title: '${milieu^} (SQLite sans index, avec requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-geo-map', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_geo_map);
+			var ${milieu}_i_map = new ol.layer.Tile({
+				title: '${milieu^} (SQLite avec index, sans requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-i-map', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_map);
+			var ${milieu}_i_geo_map = new ol.layer.Tile({
+				title: '${milieu^} (SQLite avec index, avec requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-i-geo-map', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_geo_map);
 			var ${milieu}_es = new ol.layer.Tile({
-				title: '${milieu^} (ElasticSearch sans index, sans requête géographique)',
+				title: '${milieu^} (ElasticSearch sans index, sans requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -664,7 +704,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_es);
 			var ${milieu}_geo_es = new ol.layer.Tile({
-				title: '${milieu^} (ElasticSearch sans index, avec requête géographique)',
+				title: '${milieu^} (ElasticSearch sans index, avec requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -674,7 +714,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_geo_es);
 			var ${milieu}_i_es = new ol.layer.Tile({
-				title: '${milieu^} (ElasticSearch avec index, sans requête géographique)',
+				title: '${milieu^} (ElasticSearch avec index, sans requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -684,7 +724,7 @@ Vagrant.configure("2") do |config|
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_es);
 			var ${milieu}_i_geo_es = new ol.layer.Tile({
-				title: '${milieu^} (ElasticSearch avec index, avec requête géographique)',
+				title: '${milieu^} (ElasticSearch avec index, avec requête géographique, sans requête unique)',
 				type: 'base',
 				visible: false,
 				source: new ol.source.TileWMS({
@@ -693,6 +733,46 @@ Vagrant.configure("2") do |config|
 				})
 			});
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_geo_es);
+			var ${milieu}_map_es = new ol.layer.Tile({
+				title: '${milieu^} (ElasticSearch sans index, sans requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-map-es', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_map_es);
+			var ${milieu}_geo_map_es = new ol.layer.Tile({
+				title: '${milieu^} (ElasticSearch sans index, avec requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-geo-map-es', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_geo_map_es);
+			var ${milieu}_i_map_es = new ol.layer.Tile({
+				title: '${milieu^} (ElasticSearch avec index, sans requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-i-map-es', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_map_es);
+			var ${milieu}_i_geo_map_es = new ol.layer.Tile({
+				title: '${milieu^} (ElasticSearch avec index, avec requête géographique, avec requête unique)',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-produit?dim_milieu=${milieu}&',
+					params: {'LAYERS': 'produits-i-geo-map-es', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_geo_map_es);
 			EOF
 	done
 	gawk -i inplace '/anchor/&&c==0{print l};{print}' \
@@ -714,7 +794,7 @@ Vagrant.configure("2") do |config|
 		</cache>
 		<tileset name="produits">
 			<metadata>
-				<title>Produits (SQLite sans index, sans requête géographique)</title>
+				<title>Produits (SQLite sans index, sans requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimsqlite</keyword>
 					<keyword>noindex</keyword>
@@ -736,7 +816,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="produits-geo">
 			<metadata>
-				<title>Produits (SQLite sans index, avec requête géographique)</title>
+				<title>Produits (SQLite sans index, avec requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimsqlite</keyword>
 					<keyword>noindex</keyword>
@@ -760,7 +840,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="produits-i">
 			<metadata>
-				<title>Produits (SQLite avec index, sans requête géographique)</title>
+				<title>Produits (SQLite avec index, sans requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimsqlite</keyword>
 					<keyword>withindex</keyword>
@@ -782,7 +862,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="produits-i-geo">
 			<metadata>
-				<title>Produits (SQLite avec index, avec requête géographique)</title>
+				<title>Produits (SQLite avec index, avec requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimsqlite</keyword>
 					<keyword>withindex</keyword>
@@ -804,9 +884,105 @@ Vagrant.configure("2") do |config|
 				</dimension>
 			</dimensions>
 		</tileset>
+		<tileset name="produits-map">
+			<metadata>
+				<title>Produits (SQLite sans index, sans requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimsqlite</keyword>
+					<keyword>noindex</keyword>
+					<keyword>nogeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies>
+				<dimension name="milieu" default="tout" type="sqlite">
+					<wms_single_query>true</wms_single_query>
+					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
+					<validate_query>select produit from dim where milieu=:dim</validate_query>
+					<list_query> select distinct(produit) from dim</list_query>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-geo-map">
+			<metadata>
+				<title>Produits (SQLite sans index, avec requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimsqlite</keyword>
+					<keyword>noindex</keyword>
+					<keyword>withgeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies>
+				<dimension name="milieu" default="tout" type="sqlite">
+					<wms_single_query>true</wms_single_query>
+					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
+					<validate_query>select produit from dim where milieu=:dim
+								and minx &lt;= :maxx and maxx &gt;= :minx
+								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
+					<list_query> select distinct(produit) from dim</list_query>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-i-map">
+			<metadata>
+				<title>Produits (SQLite avec index, sans requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimsqlite</keyword>
+					<keyword>withindex</keyword>
+					<keyword>nogeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits-i</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies>
+				<dimension name="milieu" default="tout" type="sqlite">
+					<wms_single_query>true</wms_single_query>
+					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
+					<validate_query>select produit from dim where milieu=:dim</validate_query>
+					<list_query> select distinct(produit) from dim</list_query>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-i-geo-map">
+			<metadata>
+				<title>Produits (SQLite avec index, avec requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimsqlite</keyword>
+					<keyword>withindex</keyword>
+					<keyword>withgeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits-i</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies>
+				<dimension name="milieu" default="tout" type="sqlite">
+					<wms_single_query>true</wms_single_query>
+					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
+					<validate_query>select produit from dim where milieu=:dim
+								and minx &lt;= :maxx and maxx &gt;= :minx
+								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
+					<list_query> select distinct(produit) from dim</list_query>
+				</dimension>
+			</dimensions>
+		</tileset>
 		<tileset name="produits-es">
 			<metadata>
-				<title>Produits (ElasticSearch sans index, sans requête géographique)</title>
+				<title>Produits (ElasticSearch sans index, sans requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimelasticsearch</keyword>
 					<keyword>noindex</keyword>
@@ -846,7 +1022,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="produits-geo-es">
 			<metadata>
-				<title>Produits (ElasticSearch sans index, avec requête géographique)</title>
+				<title>Produits (ElasticSearch sans index, avec requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimelasticsearch</keyword>
 					<keyword>noindex</keyword>
@@ -891,7 +1067,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="produits-i-es">
 			<metadata>
-				<title>Produits (ElasticSearch avec index, sans requête géographique)</title>
+				<title>Produits (ElasticSearch avec index, sans requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimelasticsearch</keyword>
 					<keyword>withindex</keyword>
@@ -931,7 +1107,7 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		<tileset name="produits-i-geo-es">
 			<metadata>
-				<title>Produits (ElasticSearch avec index, avec requête géographique)</title>
+				<title>Produits (ElasticSearch avec index, avec requête géographique, sans requête unique)</title>
 				<keywords>
 					<keyword>dimelasticsearch</keyword>
 					<keyword>withindex</keyword>
@@ -945,6 +1121,180 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies> 
 				<dimension name="milieu" default="tout" type="elasticsearch">
+					<http>
+						<url>http://localhost:9200/dim/_search</url>
+						<headers>
+							<Content-Type>application/json</Content-Type>
+						</headers>
+					</http>
+					<validate_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"query": { "bool" :{ "filter": [
+							{ "term" : { "milieu": ":dim" } },
+							{ "range": { "minx": { "lte": :maxx } } },
+							{ "range": { "maxx": { "gte": :minx } } },
+							{ "range": { "miny": { "lte": :maxy } } },
+							{ "range": { "maxy": { "gte": :miny } } }
+						] } } } ]]></validate_query>
+					<validate_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></validate_response>
+					<list_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						} ]]></list_query>
+					<list_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></list_response>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-map-es">
+			<metadata>
+				<title>Produits (ElasticSearch sans index, sans requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimelasticsearch</keyword>
+					<keyword>noindex</keyword>
+					<keyword>nogeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies> 
+				<dimension name="milieu" default="tout" type="elasticsearch">
+					<wms_single_query>true</wms_single_query>
+					<http>
+						<url>http://localhost:9200/dim/_search</url>
+						<headers>
+							<Content-Type>application/json</Content-Type>
+						</headers>
+					</http>
+					<validate_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"query": { "term": { "milieu": ":dim" } }
+						} ]]></validate_query>
+					<validate_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></validate_response>
+					<list_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						} ]]></list_query>
+					<list_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></list_response>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-geo-map-es">
+			<metadata>
+				<title>Produits (ElasticSearch sans index, avec requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimelasticsearch</keyword>
+					<keyword>noindex</keyword>
+					<keyword>withgeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies> 
+				<dimension name="milieu" default="tout" type="elasticsearch">
+					<wms_single_query>true</wms_single_query>
+					<http>
+						<url>http://localhost:9200/dim/_search</url>
+						<headers>
+							<Content-Type>application/json</Content-Type>
+						</headers>
+					</http>
+					<validate_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"query": { "bool" :{ "filter": [
+							{ "term" : { "milieu": ":dim" } },
+							{ "range": { "minx": { "lte": :maxx } } },
+							{ "range": { "maxx": { "gte": :minx } } },
+							{ "range": { "miny": { "lte": :maxy } } },
+							{ "range": { "maxy": { "gte": :miny } } }
+						] } } } ]]></validate_query>
+					<validate_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></validate_response>
+					<list_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						} ]]></list_query>
+					<list_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></list_response>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-i-map-es">
+			<metadata>
+				<title>Produits (ElasticSearch avec index, sans requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimelasticsearch</keyword>
+					<keyword>withindex</keyword>
+					<keyword>nogeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits-i</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies> 
+				<dimension name="milieu" default="tout" type="elasticsearch">
+					<wms_single_query>true</wms_single_query>
+					<http>
+						<url>http://localhost:9200/dim/_search</url>
+						<headers>
+							<Content-Type>application/json</Content-Type>
+						</headers>
+					</http>
+					<validate_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"query": { "term": { "milieu": ":dim" } }
+						} ]]></validate_query>
+					<validate_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></validate_response>
+					<list_query><![CDATA[ {
+						"size": 0,
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						} ]]></list_query>
+					<list_response><![CDATA[
+						[ "aggregations", "items", "buckets", "key" ]
+						]]></list_response>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<tileset name="produits-i-geo-map-es">
+			<metadata>
+				<title>Produits (ElasticSearch avec index, avec requête géographique, avec requête unique)</title>
+				<keywords>
+					<keyword>dimelasticsearch</keyword>
+					<keyword>withindex</keyword>
+					<keyword>withgeoquery</keyword>
+				</keywords>
+			</metadata>
+			<cache>produits-i</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies> 
+				<dimension name="milieu" default="tout" type="elasticsearch">
+					<wms_single_query>true</wms_single_query>
 					<http>
 						<url>http://localhost:9200/dim/_search</url>
 						<headers>
