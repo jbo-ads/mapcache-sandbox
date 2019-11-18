@@ -442,7 +442,7 @@ Vagrant.configure("2") do |config|
 					while true
 					do
 						curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
-						if file /vagrant/caches/produit/image/${n}.jpg | grep -q -v XML
+						if file /vagrant/caches/produit/image/${n}.jpg | grep -q JPEG
 						then
 							break
 						fi
@@ -529,7 +529,7 @@ Vagrant.configure("2") do |config|
 			while true
 			do
 				curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
-				if file /vagrant/caches/produit/image/${n}.jpg | grep -q -v XML
+				if file /vagrant/caches/produit/image/${n}.jpg | grep -q JPEG
 				then
 					break
 				fi
