@@ -1326,6 +1326,62 @@ Vagrant.configure("2") do |config|
 		</tileset>
 		EOF
 	cat <<-EOF >> /vagrant/caches/mapcache-produit.xml
+		<!-- gfi: Source et cache destinés à tester le tranfert des requêtes
+			"GetFeatureInfo" -->
+		<cache name="gfi" type="sqlite3">
+			<dbfile>/vagrant/caches/produit/gfi.sqlite3</dbfile>
+		</cache>
+		<source name="gfi" type="wms">
+			<http><url>http://localhost:80/mapcache-produit?</url></http>
+			<getmap>
+				<params>
+					<format>image/png</format>
+					<layers>produits</layers>
+				</params>
+			</getmap>
+			<getfeatureinfo>
+				<info_formats>text/html</info_formats>
+				<params>
+					<query_layers>produits</query_layers>
+				</params>
+			</getfeatureinfo>
+		</source>
+		<!-- gfi-sqlite: Couche dont la source est "produits" afin de tester le
+			tranfert des requêtes "GetFeatureInfo"; Les dimensions sont de
+			type SQLite -->
+		<tileset name="gfi-sqlite">
+			<source>gfi</source>
+			<cache>gfi</cache>
+			<format>PNG</format>
+			<grid>GoogleMapsCompatible</grid>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies>
+				<dimension name="milieu" default="tout" type="sqlite">
+					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
+					<validate_query>select produit from dim where milieu=:dim</validate_query>
+					<list_query> select distinct(produit) from dim</list_query>
+				</dimension>
+			</dimensions>
+		</tileset>
+		<!-- gfi-regex: Couche dont la source est "produits" afin de tester le
+			tranfert des requêtes "GetFeatureInfo"; Les dimensions sont de
+			type Regex -->
+		<tileset name="gfi-regex">
+			<source>gfi</source>
+			<cache>gfi</cache>
+			<format>PNG</format>
+			<grid>GoogleMapsCompatible</grid>
+			<dimensions>
+				<assembly_type>stack</assembly_type>
+				<store_assemblies>false</store_assemblies>
+				<dimension name="milieu" default="tout" type="regex">
+					<regex>^[a-zA-Z0-9]*$</regex>
+				</dimension>
+			</dimensions>
+		</tileset>
+		EOF
+	cat <<-EOF >> /vagrant/caches/mapcache-produit.xml
 			<service type="wmts" enabled="true"/>
 			<service type="wms" enabled="true"/>
 			<log_level>debug</log_level>
