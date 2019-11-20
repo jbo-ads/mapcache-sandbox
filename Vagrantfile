@@ -251,7 +251,8 @@ Vagrant.configure("2") do |config|
 		"GIBS&Earth at Night&https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?&VIIRS_CityLights_2012" \
 		"ESRI&World Imagery&https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{inv_y}/{x}&<rest>" \
 		"NOAA&Dark Gray&https://server.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{inv_y}/{x}&<rest>" \
-                "AJAston&Pirate Map&http://d.tiles.mapbox.com/v3/aj.Sketchy2/{z}/{x}/{inv_y}.png&<rest maxzoom:6>"
+		"AJAston&Pirate Map&http://d.tiles.mapbox.com/v3/aj.Sketchy2/{z}/{x}/{inv_y}.png&<rest maxzoom=\\"6\\">" \
+		"MakinaCorpus&Toulouse Pencil&https://d-tiles-vuduciel2.makina-corpus.net/toulouse-hand-drawn/{z}/{x}/{inv_y}.png&<rest minzoom=\\"13\\" maxzoom=\\"18\\" minx=\\"136229\\" miny=\\"5386020\\" maxx=\\"182550\\" maxy=\\"5419347\\">"
 	do
 		IFS='&' read provider name url layer <<< "${source}"
 		lprovider=$(tr [:upper:] [:lower:] <<< ${provider})
@@ -293,6 +294,7 @@ Vagrant.configure("2") do |config|
 				</source>
 				EOF
 		else
+			gridopt=$(sed 's/^.*<rest\\(.*\\)>$/\\1/' <<< "${layer}")
 			cat <<-EOF >> /vagrant/caches/mapcache-source.xml
 				<!-- ${mclayer} -->
 				<cache name="remote-${mclayer}" type="rest">
@@ -319,7 +321,7 @@ Vagrant.configure("2") do |config|
 				<source>${mclayer}</source>
 				<format>PNG</format>
 				<cache>${mclayer}</cache>
-				<grid>GoogleMapsCompatible</grid>
+				<grid${gridopt}>GoogleMapsCompatible</grid>
 			</tileset>
 			EOF
 	done
