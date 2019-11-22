@@ -5,7 +5,8 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest: 80, host: 8842
   config.vm.network "forwarded_port", guest: 9200, host: 9242
   config.vm.provider "virtualbox" do |v|
-    v.memory = 4096
+    v.memory = 5120
+    v.cpus = 2
   end
 
   config.vm.provision "shell", inline: <<-DEPS
@@ -902,7 +903,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies>
 				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
 					<validate_query>select produit from dim where milieu=:dim</validate_query>
 					<list_query> select distinct(produit) from dim</list_query>
@@ -925,7 +926,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies>
 				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
 					<validate_query>select produit from dim where milieu=:dim
 								and minx &lt;= :maxx and maxx &gt;= :minx
@@ -950,7 +951,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies>
 				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
 					<validate_query>select produit from dim where milieu=:dim</validate_query>
 					<list_query> select distinct(produit) from dim</list_query>
@@ -973,7 +974,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies>
 				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
 					<validate_query>select produit from dim where milieu=:dim
 								and minx &lt;= :maxx and maxx &gt;= :minx
@@ -1168,7 +1169,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies> 
 				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<http>
 						<url>http://localhost:9200/dim/_search</url>
 						<headers>
@@ -1209,7 +1210,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies> 
 				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<http>
 						<url>http://localhost:9200/dim/_search</url>
 						<headers>
@@ -1255,7 +1256,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies> 
 				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<http>
 						<url>http://localhost:9200/dim/_search</url>
 						<headers>
@@ -1296,7 +1297,7 @@ Vagrant.configure("2") do |config|
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies> 
 				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_single_query>true</wms_single_query>
+					<wms_querybymap>true</wms_querybymap>
 					<http>
 						<url>http://localhost:9200/dim/_search</url>
 						<headers>
