@@ -1007,7 +1007,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "term": { "milieu": ":dim" } }
 						} ]]></validate_query>
 					<validate_response><![CDATA[
@@ -1015,7 +1015,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1047,7 +1047,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "bool" :{ "filter": [
 							{ "term" : { "milieu": ":dim" } },
 							{ "range": { "minx": { "lte": :maxx } } },
@@ -1060,7 +1060,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1092,7 +1092,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "term": { "milieu": ":dim" } }
 						} ]]></validate_query>
 					<validate_response><![CDATA[
@@ -1100,7 +1100,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1132,7 +1132,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "bool" :{ "filter": [
 							{ "term" : { "milieu": ":dim" } },
 							{ "range": { "minx": { "lte": :maxx } } },
@@ -1145,7 +1145,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1178,7 +1178,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "term": { "milieu": ":dim" } }
 						} ]]></validate_query>
 					<validate_response><![CDATA[
@@ -1186,7 +1186,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1219,7 +1219,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "bool" :{ "filter": [
 							{ "term" : { "milieu": ":dim" } },
 							{ "range": { "minx": { "lte": :maxx } } },
@@ -1232,7 +1232,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1265,7 +1265,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "term": { "milieu": ":dim" } }
 						} ]]></validate_query>
 					<validate_response><![CDATA[
@@ -1273,7 +1273,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
@@ -1306,7 +1306,7 @@ Vagrant.configure("2") do |config|
 					</http>
 					<validate_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } },
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
 						"query": { "bool" :{ "filter": [
 							{ "term" : { "milieu": ":dim" } },
 							{ "range": { "minx": { "lte": :maxx } } },
@@ -1319,7 +1319,7 @@ Vagrant.configure("2") do |config|
 						]]></validate_response>
 					<list_query><![CDATA[ {
 						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 100 } } }
+						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
 						} ]]></list_query>
 					<list_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
