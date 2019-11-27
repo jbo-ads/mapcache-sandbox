@@ -67,7 +67,6 @@ Vagrant.configure("2") do |config|
 	psql -U postgres -c 'CREATE DATABASE mapcache;'
 	systemctl enable elasticsearch.service
 	systemctl start elasticsearch.service
-	curl -s -XDELETE "http://localhost:9200/_all"
 	curl -s "http://localhost:9200/"
 	SERVICES
 
@@ -368,10 +367,6 @@ Vagrant.configure("2") do |config|
 		);
 		COMMIT;
 		EOF
-	cat <<-EOF > /vagrant/caches/mapcache-produit-unitaire.xml
-		<?xml version="1.0" encoding="UTF-8"?>
-		<mapcache>
-		EOF
 	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/mapcache-produit.js
 		var mapcache_produit = new ol.layer.Group({
 			title: 'Produits',
@@ -382,237 +377,40 @@ Vagrant.configure("2") do |config|
 			title: 'Milieux géographiques', fold: 'open'
 		});
 		mapcache_produit.getLayers().array_.unshift(mapcache_produit_milieu);
-		var mapcache_produit_unitaire = new ol.layer.Group({
-			title: 'Produits unitaires', fold: 'close'
-		});
-		mapcache_produit.getLayers().array_.unshift(mapcache_produit_unitaire);
 		EOF
 	for prod in \
-		arcachon:-119075:5565095:carre:mundialis-osm:littoral \
-		laruns:-47548:5310224:horizontal:mundialis-osm:montagne \
-		somme:180903:6483586:vertical:mundialis-osm:littoral \
-		ossau:-49211:5288978:vertical:mundialis-srtm30-color-hillshade:montagne \
-		gourette:-37017:5305633:horizontal:mundialis-srtm30-hillshade:montagne \
-		larhune:-182061:5359134:horizontal:mundialis-osm:montagne,littoral \
 		paris:261398:6250048:carre:stamen-toner:ville \
-		zurich:951019:6002165:carre:stamen-terrain:montagne,ville \
-		newyork:-8230858:4983630:vertical:stamen-watercolor:ville,littoral \
-		sanantonio:-10963423:3429943:horizontal:esri-worldimagery:ville \
-		minneapolis:-10379828:5616929:horizontal:mundialis-osm:ville \
-		coimbra:-938061:4896085:vertical:stamen-terrain:ville \
 		lisbonne:-1012288:4687682:vertical:stamen-watercolor:ville,littoral \
-		barcelone:242054:5072037:carre:noaa-darkgray:ville,littoral \
-		andorre:169396:5237260:carre:esri-worldimagery:montagne \
-		istanbul:3226039:5013592:horizontal:esri-worldimagery:ville,littoral \
-		samos:3007574:4538268:horizontal:stamen-watercolor:littoral \
-		ephese:3043770:4571106:horizontal:stamen-terrain:littoral \
 		athenes:2641238:4575402:vertical:mundialis-osm:ville,littoral \
-		persepolis:5887633:3495213:carre:esri-worldimagery:desert \
-		bam:6497415:3390004:carre:esri-worldimagery:desert \
 		vienne:1822648:6141610:carre:stamen-toner:ville \
-		prague:1604255:6461268:horizontal:mundialis-osm:ville \
-		pise:1157348:5422676:horizontal:stamen-watercolor:ville,littoral \
-		florence:1252274:5430634:vertical:mundialis-osm:ville \
-		sienne:1261495:5360547:horizontal:stamen-terrain:ville
+		londres:-15915:6710369:horizontal:esri-worldimagery:ville \
+		prague:1604255:6461268:horizontal:mundialis-osm:ville
 	do
 		IFS=':' read -a argv <<< "$prod"
-		n=${argv[0]}
-		x=$(tr '-' '_' <<< ${argv[1]})
-		y=$(tr '-' '_' <<< ${argv[2]})
-		d=${argv[3]}
-		c=${argv[4]}
-		if [ $d == "carre" ]; then w=10;h=10;
-		elif [ $d == "horizontal" ]; then w=12;h=8;
-		elif [ $d == "vertical" ]; then w=8;h=12;
-		else w=6;h=6;
-		fi
-		l=9783.94
-		minx=$(echo "2k $x $l $w 2/*-pq" | dc)
-		miny=$(echo "2k $y $l $h 2/*-pq" | dc)
-		maxx=$(echo "2k $x $l $w 2/*+pq" | dc)
-		maxy=$(echo "2k $y $l $h 2/*+pq" | dc)
-		width=$(echo 256 $w *pq | dc)
-		height=$(echo 256 $h *pq | dc)
-		if [ ! -f /vagrant/caches/produit/${n}.sqlite3 ]
-		then
-			if [ ! -f /vagrant/caches/produit/image/${n}.tif ]
-			then
-				if [ ! -f /vagrant/caches/produit/image/${n}.jpg ]
-				then
-					pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
-					url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=$c"
-					retry=0
-					while true
-					do
-						curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
-						if file /vagrant/caches/produit/image/${n}.jpg | grep -q JPEG
-						then
-							break
-						fi
-						echo Erreur:${n} nouvel essai >&2
-						sleep ${retry}
-						retry=$((retry+1))
-					done
-				fi
-				gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
-					/vagrant/caches/produit/image/${n}.jpg /vagrant/caches/produit/image/${n}.tif
-			fi
-		fi
-		cat <<-EOF >> /vagrant/caches/mapcache-produit-unitaire.xml
-			<!-- ${n}: ${argv[1]}, ${argv[2]} (${width} x ${height}) -->
-			<source name="${n}" type="gdal">
-				<data>/vagrant/caches/produit/image/${n}.tif</data>
-			</source>
-			<cache name="${n}" type="sqlite3">
-				<dbfile>/vagrant/caches/produit/${n}.sqlite3</dbfile>
-			</cache>
-			<tileset name="${n}">
-				<source>${n}</source>
-				<cache>${n}</cache>
-				<grid>GoogleMapsCompatible</grid>
-				<format>PNG</format>
-			</tileset>
-			EOF
-		cat <<-EOF >> /var/www/html/mapcache-sandbox-browser/mapcache-produit.js
-			var ${n} = new ol.layer.Tile({
-				title: '${n}: [ ${minx}, ${miny}, ${maxx}, ${maxy} ]',
-				type: 'base', visible: false,
-				source: new ol.source.TileWMS({
-					url: 'http://'+location.host+'/mapcache-produit-unitaire?',
-					params: {'LAYERS': '${n}', 'VERSION': '1.1.1'}
-				})
-			});
-			mapcache_produit_unitaire.getLayers().array_.unshift(${n});
-			EOF
-		IFS=',' read -a milieu <<< "${argv[5]},tout"
-		for m in "${milieu[@]}"
-		do
-			sqlite3 /vagrant/caches/produit/dimproduits.sqlite <<-EOF
-				BEGIN TRANSACTION;
-				INSERT OR IGNORE INTO dim(milieu,produit,minx,miny,maxx,maxy) VALUES("${m}","${n}",${minx},${miny},${maxx},${maxy});
-				COMMIT;
-				EOF
-		done
+		/vagrant/makeimage.sh "${argv[@]}"
 	done
 	# Création aléatoire de produits dans des étendues données
 	for bbox in \
-		"chine,9000000,2800000,13000000,5500000" \
-		"amazonie,-7800000,-3300000,-5400000,-100000"
+		"australie:12924584:-3688545:16578885:-2406849" \
+		"amazonie:-7800245:-3355891:-5537709:185894" \
+		"siberie:9412149:7083572:14362823:11486345" \
+		"canada:-13988587:6305749:-10591114:10067673" \
+		"alaska:-18002448:8580515:-15693439:11006932"
 	do
-		break
-		IFS=',' read nom xmin ymin xmax ymax <<< "$bbox"
-		xmin=$(tr '-' '_' <<< "${xmin}")
-		ymin=$(tr '-' '_' <<< "${ymin}")
-		xmax=$(tr '-' '_' <<< "${xmax}")
-		ymax=$(tr '-' '_' <<< "${ymax}")
+		IFS=':' read -a argv <<< "$bbox"
 		if [ $(find /vagrant/caches -name "${nom}_*.sqlite3" | wc -l) -ge 20 ]
 		then
 			continue
 		fi
-		for count in $(seq 1 3)
+		for count in $(seq 1 2)
 		do
-			x=$(dc <<< "20k $xmax $xmin - $RANDOM 32768/* $xmin+p" | tr '-' '_')
-			y=$(dc <<< "20k $ymax $ymin - $RANDOM 32768/* $ymin+p" | tr '-' '_')
-			#  1. Récupération d'une image JPG depuis une source
-			n=${nom}_$(uuidgen | tr '-' '_')
-			l=9783.94
-			w=10
-			h=10
-			d=${nom}
-			c=esri-worldimagery
-			minx=$(echo "2k $x $l $w 2/*-pq" | dc)
-			miny=$(echo "2k $y $l $h 2/*-pq" | dc)
-			maxx=$(echo "2k $x $l $w 2/*+pq" | dc)
-			maxy=$(echo "2k $y $l $h 2/*+pq" | dc)
-			width=$(echo 256 $w *pq | dc)
-			height=$(echo 256 $h *pq | dc)
-			pre="http://localhost:80/mapcache-source?service=wms&request=getmap&srs=epsg:3857"
-			url="${pre}&bbox=${minx},${miny},${maxx},${maxy}&width=${width}&height=${height}&layers=${c}"
-			retry=0
-			while true
-			do
-				curl "$url" > /vagrant/caches/produit/image/${n}.jpg 2>/dev/null
-				if file /vagrant/caches/produit/image/${n}.jpg | grep -q JPEG
-				then
-					break
-				fi
-				echo Erreur:${n} nouvel essai >&2
-				sleep ${retry}
-				retry=$((retry+1))
-			done
-			# 2. Conversion du JPG en GeoTiff
-			gdal_translate -a_srs EPSG:3857 -a_ullr ${minx} ${maxy} ${maxx} ${miny} \
-				/vagrant/caches/produit/image/${n}.jpg /vagrant/caches/produit/image/${n}.tif
-			# 3. Création d'une configuration MapCache pour préparer la conversion en cache
-			cat <<-EOF > /vagrant/caches/mapcache-alea.xml
-				<?xml version="1.0" encoding="UTF-8"?>
-				<mapcache>
-					<source name="${n}" type="gdal">
-						<data>/vagrant/caches/produit/image/${n}.tif</data>
-					</source>
-					<cache name="${n}" type="sqlite3">
-						<dbfile>/vagrant/caches/produit/${n}.sqlite3</dbfile>
-					</cache>
-					<tileset name="${n}">
-						<source>${n}</source>
-						<cache>${n}</cache>
-						<grid>GoogleMapsCompatible</grid>
-						<format>PNG</format>
-					</tileset>
-					<service type="wmts" enabled="true"/>
-					<service type="wms" enabled="true"/>
-					<log_level>debug</log_level>
-					<threaded_fetching>true</threaded_fetching>
-				</mapcache>
-				EOF
-			# 4. Conversion du GeoTiff en cache SQLite
-			ll=$(gdalinfo /vagrant/caches/produit/image/${n}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Lower Left/{print $3$4}')
-			ur=$(gdalinfo /vagrant/caches/produit/image/${n}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Upper Right/{print $3$4}')
-			mapcache_seed -c /vagrant/caches/mapcache-alea.xml -e $ll,$ur -g GoogleMapsCompatible -t ${n} -z 0,13
-			cp /vagrant/caches/produit/${n}.sqlite3 /vagrant/caches/produit/${n}_i.sqlite3
-			sqlite3 /vagrant/caches/produit/${n}_i.sqlite3 'CREATE UNIQUE INDEX xyz ON tiles(x,y,z)'
-			# 5. Ajout du cache dans les dimensions
-			IFS=',' read -a milieu <<< "${d},tout"
-			for m in "${milieu[@]}"
-			do
-				sqlite3 /vagrant/caches/produit/dimproduits.sqlite <<-EOF
-					BEGIN TRANSACTION;
-					INSERT OR IGNORE INTO dim(milieu,produit,minx,miny,maxx,maxy) VALUES("${m}","${n}",${minx},${miny},${maxx},${maxy});
-					COMMIT;
-					EOF
-			done
+			/vagrant/makeimage.sh --random "${argv[@]}"
 		done
 	done
 	apachectl -k stop
 	sleep 2
-	cat <<-EOF >> /vagrant/caches/mapcache-produit-unitaire.xml
-			<service type="wmts" enabled="true"/>
-			<service type="wms" enabled="true"/>
-			<log_level>debug</log_level>
-			<threaded_fetching>true</threaded_fetching>
-		</mapcache>
-		EOF
-	for i in $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'SELECT * FROM dim' \
-		| awk -F'|' '{print "{\\"milieu\\":\\""$1"\\",\\"produit\\":\\""$2"\\",\\"minx\\":"$3",\\"miny\\":"$4",\\"maxx\\":"$5",\\"maxy\\":"$6"}"}')
-	do
-		curl -s -XPOST -H "Content-Type: application/json" "http://localhost:9200/dim/_doc" -d "$i"
-	done
-	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-produit-unitaire.conf
-		<IfModule mapcache_module>
-			MapCacheAlias "/mapcache-produit-unitaire" "/vagrant/caches/mapcache-produit-unitaire.xml"
-		</IfModule>
-		EOF
-	for produit in $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'select distinct(produit) from dim')
-	do
-		if [ ! -f /vagrant/caches/produit/${produit}.sqlite3 ]
-		then
-			ll=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Lower Left/{print $3$4}')
-			ur=$(gdalinfo /vagrant/caches/produit/image/${produit}.tif | sed 's/[)(]//g;s/,/, /' | awk '/Upper Right/{print $3$4}')
-			mapcache_seed -c /vagrant/caches/mapcache-produit-unitaire.xml -e $ll,$ur -g GoogleMapsCompatible -t ${produit} -z 0,13
-			cp /vagrant/caches/produit/${produit}.sqlite3 /vagrant/caches/produit/${produit}_i.sqlite3
-			sqlite3 /vagrant/caches/produit/${produit}_i.sqlite3 'CREATE UNIQUE INDEX xyz ON tiles(x,y,z)'
-		fi
-	done
+	
+	
 	for milieu in "tout" ### $(sqlite3 /vagrant/caches/produit/dimproduits.sqlite 'SELECT DISTINCT(milieu) FROM dim')
 	do
 		cat <<-EOF >> /var/www/html/mapcache-sandbox-browser/mapcache-produit.js
@@ -778,227 +576,81 @@ Vagrant.configure("2") do |config|
 			mapcache_produit_milieu.getLayers().array_.unshift(${milieu}_i_geo_map_es);
 			EOF
 	done
+	
+	
 	gawk -i inplace '/anchor/&&c==0{print l};{print}' \
 		l='<script src="mapcache-produit.js"></script>' \
 		/var/www/html/mapcache-sandbox-browser/index.html
 	cat <<-EOF > /vagrant/caches/mapcache-produit.xml
 		<?xml version="1.0" encoding="UTF-8"?>
 		<mapcache>
-		EOF
-	cat <<-EOF >> /vagrant/caches/mapcache-produit.xml
-		<!-- tous les produits, par milieu -->
 		<cache name="produits" type="sqlite3">
+			<!-- Cache de produit sans index XYZ -->
 			<dbfile>/vagrant/caches/produit/{dim:milieu}.sqlite3</dbfile>
 			<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
 		</cache>
 		<cache name="produits-i" type="sqlite3">
+			<!-- Cache de produit avec index XYZ -->
 			<dbfile>/vagrant/caches/produit/{dim:milieu}_i.sqlite3</dbfile>
 			<queries><get>select data from tiles where x=:x and y=:y and z=:z</get></queries>
 		</cache>
-		<tileset name="produits">
-			<metadata>
-				<title>Produits (SQLite sans index, sans requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>noindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
+		EOF
+	
+	
+	for index in "" "-i" ; do
+	for geo in "" "-geo" ; do
+	for map in "" "-map" ; do
+	for thr in "" "-thr" ; do
+		sql="select produit from dim where milieu=:dim"
+		dsl='{ "term": { "milieu": ":dim" } }'
+		if [ "x${geo}" == "x-geo" ]
+		then
+			sql="${sql} and minx &lt;= :maxx and maxx &gt;= :minx"
+			sql="${sql} and minx &lt;= :maxx and maxx &gt;= :minx"
+			dsl='{ "bool" :{ "filter": [ '"${dsl}"
+			dsl="${dsl}"', { "range": { "minx": { "lte": :maxx } } }'
+			dsl="${dsl}"', { "range": { "maxx": { "gte": :minx } } }'
+			dsl="${dsl}"', { "range": { "miny": { "lte": :maxy } } }'
+			dsl="${dsl}"', { "range": { "maxy": { "gte": :miny } } }'
+			dsl="${dsl}"' ] } }'
+		fi
+		querybymap="false"
+		if [ "x${map}" == "x-map" ]
+		then
+			querybymap="true"
+		fi
+		threadsubtiles="false"
+		if [ "x${thr}" == "x-thr" ]
+		then
+			threadsubtiles="true"
+		fi
+		cat <<-EOF >> /vagrant/caches/mapcache-produit.xml
+		<tileset name="produits${index}${geo}${map}${thr}">
+			<cache>produits${index}</cache>
 			<grid>GoogleMapsCompatible</grid>
 			<format>PNG</format>
 			<dimensions>
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies>
+				<assembly_threaded_fetching>${threadsubtiles}</assembly_threaded_fetching>
 				<dimension name="milieu" default="tout" type="sqlite">
+					<wms_querybymap>${querybymap}</wms_querybymap>
 					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim</validate_query>
+					<validate_query>${sql}</validate_query>
 					<list_query> select distinct(produit) from dim</list_query>
 				</dimension>
 			</dimensions>
 		</tileset>
-		<tileset name="produits-geo">
-			<metadata>
-				<title>Produits (SQLite sans index, avec requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>noindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim
-								and minx &lt;= :maxx and maxx &gt;= :minx
-								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i">
-			<metadata>
-				<title>Produits (SQLite avec index, sans requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>withindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-geo">
-			<metadata>
-				<title>Produits (SQLite avec index, avec requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>withindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim
-								and minx &lt;= :maxx and maxx &gt;= :minx
-								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-map">
-			<metadata>
-				<title>Produits (SQLite sans index, sans requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>noindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_querybymap>true</wms_querybymap>
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-geo-map">
-			<metadata>
-				<title>Produits (SQLite sans index, avec requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>noindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_querybymap>true</wms_querybymap>
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim
-								and minx &lt;= :maxx and maxx &gt;= :minx
-								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-map">
-			<metadata>
-				<title>Produits (SQLite avec index, sans requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>withindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_querybymap>true</wms_querybymap>
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-geo-map">
-			<metadata>
-				<title>Produits (SQLite avec index, avec requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimsqlite</keyword>
-					<keyword>withindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies>
-				<dimension name="milieu" default="tout" type="sqlite">
-					<wms_querybymap>true</wms_querybymap>
-					<dbfile>/vagrant/caches/produit/dimproduits.sqlite</dbfile>
-					<validate_query>select produit from dim where milieu=:dim
-								and minx &lt;= :maxx and maxx &gt;= :minx
-								and miny &lt;= :maxy and maxy &gt;= :miny</validate_query>
-					<list_query> select distinct(produit) from dim</list_query>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-es">
-			<metadata>
-				<title>Produits (ElasticSearch sans index, sans requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>noindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
+		<tileset name="produits${index}${geo}${map}${thr}-es">
+			<cache>produits${index}</cache>
 			<grid>GoogleMapsCompatible</grid>
 			<format>PNG</format>
 			<dimensions>
 				<assembly_type>stack</assembly_type>
 				<store_assemblies>false</store_assemblies> 
+				<assembly_threaded_fetching>${threadsubtiles}</assembly_threaded_fetching>
 				<dimension name="milieu" default="tout" type="elasticsearch">
+					<wms_querybymap>${querybymap}</wms_querybymap>
 					<http>
 						<url>http://localhost:9200/dim/_search</url>
 						<headers>
@@ -1008,312 +660,8 @@ Vagrant.configure("2") do |config|
 					<validate_query><![CDATA[ {
 						"size": 0,
 						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "term": { "milieu": ":dim" } }
+						"query": ${dsl}
 						} ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-geo-es">
-			<metadata>
-				<title>Produits (ElasticSearch sans index, avec requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>noindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "bool" :{ "filter": [
-							{ "term" : { "milieu": ":dim" } },
-							{ "range": { "minx": { "lte": :maxx } } },
-							{ "range": { "maxx": { "gte": :minx } } },
-							{ "range": { "miny": { "lte": :maxy } } },
-							{ "range": { "maxy": { "gte": :miny } } }
-						] } } } ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-es">
-			<metadata>
-				<title>Produits (ElasticSearch avec index, sans requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>withindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "term": { "milieu": ":dim" } }
-						} ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-geo-es">
-			<metadata>
-				<title>Produits (ElasticSearch avec index, avec requête géographique, sans requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>withindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "bool" :{ "filter": [
-							{ "term" : { "milieu": ":dim" } },
-							{ "range": { "minx": { "lte": :maxx } } },
-							{ "range": { "maxx": { "gte": :minx } } },
-							{ "range": { "miny": { "lte": :maxy } } },
-							{ "range": { "maxy": { "gte": :miny } } }
-						] } } } ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-map-es">
-			<metadata>
-				<title>Produits (ElasticSearch sans index, sans requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>noindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_querybymap>true</wms_querybymap>
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "term": { "milieu": ":dim" } }
-						} ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-geo-map-es">
-			<metadata>
-				<title>Produits (ElasticSearch sans index, avec requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>noindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_querybymap>true</wms_querybymap>
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "bool" :{ "filter": [
-							{ "term" : { "milieu": ":dim" } },
-							{ "range": { "minx": { "lte": :maxx } } },
-							{ "range": { "maxx": { "gte": :minx } } },
-							{ "range": { "miny": { "lte": :maxy } } },
-							{ "range": { "maxy": { "gte": :miny } } }
-						] } } } ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-map-es">
-			<metadata>
-				<title>Produits (ElasticSearch avec index, sans requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>withindex</keyword>
-					<keyword>nogeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_querybymap>true</wms_querybymap>
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "term": { "milieu": ":dim" } }
-						} ]]></validate_query>
-					<validate_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></validate_response>
-					<list_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } }
-						} ]]></list_query>
-					<list_response><![CDATA[
-						[ "aggregations", "items", "buckets", "key" ]
-						]]></list_response>
-				</dimension>
-			</dimensions>
-		</tileset>
-		<tileset name="produits-i-geo-map-es">
-			<metadata>
-				<title>Produits (ElasticSearch avec index, avec requête géographique, avec requête unique)</title>
-				<keywords>
-					<keyword>dimelasticsearch</keyword>
-					<keyword>withindex</keyword>
-					<keyword>withgeoquery</keyword>
-				</keywords>
-			</metadata>
-			<cache>produits-i</cache>
-			<grid>GoogleMapsCompatible</grid>
-			<format>PNG</format>
-			<dimensions>
-				<assembly_type>stack</assembly_type>
-				<store_assemblies>false</store_assemblies> 
-				<dimension name="milieu" default="tout" type="elasticsearch">
-					<wms_querybymap>true</wms_querybymap>
-					<http>
-						<url>http://localhost:9200/dim/_search</url>
-						<headers>
-							<Content-Type>application/json</Content-Type>
-						</headers>
-					</http>
-					<validate_query><![CDATA[ {
-						"size": 0,
-						"aggs": { "items": { "terms": { "field": "produit.keyword", "size": 1000 } } },
-						"query": { "bool" :{ "filter": [
-							{ "term" : { "milieu": ":dim" } },
-							{ "range": { "minx": { "lte": :maxx } } },
-							{ "range": { "maxx": { "gte": :minx } } },
-							{ "range": { "miny": { "lte": :maxy } } },
-							{ "range": { "maxy": { "gte": :miny } } }
-						] } } } ]]></validate_query>
 					<validate_response><![CDATA[
 						[ "aggregations", "items", "buckets", "key" ]
 						]]></validate_response>
@@ -1328,6 +676,8 @@ Vagrant.configure("2") do |config|
 			</dimensions>
 		</tileset>
 		EOF
+	done ; done ; done ; done
+	
 	cat <<-EOF >> /vagrant/caches/mapcache-produit.xml
 		<!-- gfi: Source et cache destinés à tester le tranfert des requêtes
 			"GetFeatureInfo" -->

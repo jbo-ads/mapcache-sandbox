@@ -108,38 +108,43 @@ fi
 
 # CACHE SQLITE DEPUIS GEOTIFF
 
-cat <<-EOF > ${basedir}/caches/mapcache-${name}.xml
-<?xml version="1.0" encoding="UTF-8"?>*
-<mapcache>
-	<source name="${name}" type="gdal">
-		<data>${basedir}/caches/produit/image/${name}.tif</data>
-	</source>
-	<cache name="${name}" type="sqlite3">
-		<dbfile>${basedir}/caches/produit/${name}.sqlite3</dbfile>
-	</cache>
-	<tileset name="${name}">
-		<source>${name}</source>
-		<cache>${name}</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-	</tileset>
-	<service type="wmts" enabled="true"/>
-	<service type="wms" enabled="true"/>
-	<log_level>debug</log_level>
-	<threaded_fetching>true</threaded_fetching>
-</mapcache>
-EOF
+if [ ! -f ${basedir}/caches/produit/${name}.sqlite3 ]
+then
+  cat <<-EOF > ${basedir}/caches/mapcache-${name}.xml
+	<?xml version="1.0" encoding="UTF-8"?>
+	<mapcache>
+		<source name="${name}" type="gdal">
+			<data>${basedir}/caches/produit/image/${name}.tif</data>
+		</source>
+		<cache name="${name}" type="sqlite3">
+			<dbfile>${basedir}/caches/produit/${name}.sqlite3</dbfile>
+		</cache>
+		<tileset name="${name}">
+			<source>${name}</source>
+			<cache>${name}</cache>
+			<grid>GoogleMapsCompatible</grid>
+			<format>PNG</format>
+		</tileset>
+		<service type="wmts" enabled="true"/>
+		<service type="wms" enabled="true"/>
+		<log_level>debug</log_level>
+		<threaded_fetching>true</threaded_fetching>
+	</mapcache>
+	EOF
 
-mapcache_seed -c ${basedir}/caches/mapcache-${name}.xml \
-              -e ${minx},${miny},${maxx},${maxy} \
-              -g GoogleMapsCompatible \
-              -t ${name} \
-              -z 0,13
+  mapcache_seed -c ${basedir}/caches/mapcache-${name}.xml \
+                -e ${minx},${miny},${maxx},${maxy} \
+                -g GoogleMapsCompatible \
+                -t ${name} \
+                -z 0,13 \
+  && rm ${basedir}/caches/mapcache-${name}.xml \
+  || exit 1
 
-cp ${basedir}/caches/produit/${name}.sqlite3 \
-   ${basedir}/caches/produit/${name}_i.sqlite3
-sqlite3 ${basedir}/caches/produit/${name}_i.sqlite3 \
-        'CREATE UNIQUE INDEX xyz ON tiles(x,y,z);'
+  cp ${basedir}/caches/produit/${name}.sqlite3 \
+     ${basedir}/caches/produit/${name}_i.sqlite3
+  sqlite3 ${basedir}/caches/produit/${name}_i.sqlite3 \
+          'CREATE UNIQUE INDEX xyz ON tiles(x,y,z);'
+fi
 
 
 # ENTREES DES CATALOGUES SQLITE ET ELASTICSEARCH
