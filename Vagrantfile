@@ -398,7 +398,7 @@ Vagrant.configure("2") do |config|
 		"alaska:-18002448:8580515:-15693439:11006932"
 	do
 		IFS=':' read -a argv <<< "$bbox"
-		if [ $(find /vagrant/caches -name "${nom}_*.sqlite3" | wc -l) -ge 20 ]
+		if [ $(find /vagrant/caches -name "${argv[0]}_*.sqlite3" | wc -l) -ge 20 ]
 		then
 			continue
 		fi
