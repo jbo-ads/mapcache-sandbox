@@ -39,7 +39,7 @@ WMTS_1() {
           2> >(awk -F'[\tms]' '/real/{print ($2*60+$3)*1000}'))
     if file tile | grep -q -E '(JPEG|PNG)'
     then
-      thost+=${mes}
+      thost+=(${mes})
     elif file tile | grep -q 'XML'
     then
       echo
@@ -95,7 +95,7 @@ WMS_1024() {
           2> >(awk -F'[\tms]' '/real/{print ($2*60+$3)*1000}'))
     if file map | grep -q -E '(JPEG|PNG)'
     then
-      thost+=${mes}
+      thost+=(${mes})
     elif file map | grep -q 'XML'
     then
       printf "\n\nURL: %s\n" "${url}"
@@ -171,7 +171,7 @@ WMTS_16() {
         fi
       done
     done
-    thost+=${mes}
+    thost+=(${mes})
   done
   printf "%30s " "$(dc <<< "${thost[@]} ${dcmean}")"
 
@@ -215,7 +215,7 @@ then
   nmes=10  WMS_1024  TEST_005 2 0 0 mapcache-produit produits-i-geo
   nmes=10  WMTS_16   TEST_006 2 0 0 mapcache-produit produits-i-geo
 
-  printf "\n Couverture par quartiers du catalogue des produits 4x16 tuiles au niveau 3\n"
+  printf "\n# Couverture par quartiers du catalogue des produits 4x16 tuiles au niveau 3\n"
   nmes=10 WMS_1024   TEST_007 3 0 0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 3 4 0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 3 0 4 mapcache-produit produits-i-geo
@@ -225,7 +225,7 @@ then
   nmes=10 WMTS_16    TEST_007 3 0 4 mapcache-produit produits-i-geo
   nmes=10 WMTS_16    TEST_007 3 4 4 mapcache-produit produits-i-geo
 
-  printf "\n Couverture par seizième du catalogue des produits 16x16tuiles au niveau 4\n"
+  printf "\n# Couverture par seizième du catalogue des produits 16x16tuiles au niveau 4\n"
   nmes=10 WMS_1024   TEST_007 4  0  0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 4  4  0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 4  8  0 mapcache-produit produits-i-geo
@@ -263,6 +263,20 @@ elif [ $# -eq 7 ]
 then
 
   nmes=1 eval $1 $2 $3 $4 $5 $6 $7
+
+elif [ $# -eq 1 ]
+then
+
+  case "x$1" in
+    xclearlog|xgetlog)
+      eval $1
+      ;;
+    xcompile)
+      vagrant ssh -c 'sudo apachectl -k stop ;
+                      cd /vagrant/mapcache/build && sudo make install ;
+                      sudo apachectl -k start'
+      ;;
+  esac
 
 fi
 
