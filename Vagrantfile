@@ -606,7 +606,7 @@ Vagrant.configure("2") do |config|
 		if [ "x${geo}" == "x-geo" ]
 		then
 			sql="${sql} and minx &lt;= :maxx and maxx &gt;= :minx"
-			sql="${sql} and minx &lt;= :maxx and maxx &gt;= :minx"
+			sql="${sql} and miny &lt;= :maxy and maxy &gt;= :miny"
 			dsl='{ "bool" :{ "filter": [ '"${dsl}"
 			dsl="${dsl}"', { "range": { "minx": { "lte": :maxx } } }'
 			dsl="${dsl}"', { "range": { "maxx": { "gte": :minx } } }'

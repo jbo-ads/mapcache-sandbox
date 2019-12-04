@@ -278,6 +278,25 @@ then
       ;;
   esac
 
+elif [ $# -eq 4 ]
+then
+
+  case "x$1" in
+    xtilebbox)
+      r="20037508.3427892480"
+      z=$2
+      x=$3
+      y=$4
+      ntiles=$(dc <<< "2 $z ^pq")
+      tilesize=$(dc <<< "10k $r 2 * $ntiles / pq")
+      minx=$(dc <<< "10k 0 $r - $x $tilesize *+pq")
+      miny=$(dc <<< "10k 0 $r - $ntiles $y 1+ - $tilesize *+pq")
+      maxx=$(dc <<< "10k 0 $r - $x 1+ $tilesize *+pq")
+      maxy=$(dc <<< "10k 0 $r - $ntiles $y - $tilesize *+pq")
+      printf "%s:%s:%s -> [ %s, %s, %s, %s ]\n" $z $x $y $minx $miny $maxx $maxy
+      ;;
+  esac
+
 fi
 
 
