@@ -61,6 +61,7 @@ WMTS_1() {
   ))
   printf "%30s " "$(dc <<< "${tguest[@]} ${dcmean}")"
   printf "\n"
+  printf "# URL: %s\n" "${url}"
 }
 
 
@@ -70,13 +71,13 @@ WMS_1024() {
   f=${FUNCNAME[0]}
   printf "%-10s %-10s %4s %6s %6s %-16s %-20s " $f $d $z $x $y $c $l
 
-  r="20037508.3427892480"
+  r="20037508.342"
   ntiles=$(dc <<< "2 $z ^pq")
-  tilesize=$(dc <<< "20k $r 2 * $ntiles / pq")
-  minx=$(dc <<< "20k 0 $r - $x $tilesize *+pq")
-  miny=$(dc <<< "20k 0 $r - $ntiles $y 4+ - $tilesize *+pq")
-  maxx=$(dc <<< "20k 0 $r - $x 4+ $tilesize *+pq")
-  maxy=$(dc <<< "20k 0 $r - $ntiles $y - $tilesize *+pq")
+  tilesize=$(dc <<< "5k $r 2 * $ntiles / pq")
+  minx=$(dc <<< "5k 0 $r - $x $tilesize *+pq")
+  miny=$(dc <<< "5k 0 $r - $ntiles $y 4+ - $tilesize *+pq")
+  maxx=$(dc <<< "5k 0 $r - $x 4+ $tilesize *+pq")
+  maxy=$(dc <<< "5k 0 $r - $ntiles $y - $tilesize *+pq")
 
   src="http://localhost:8842/${c}"
   req="SERVICE=WMS&REQUEST=GetMap"
@@ -117,6 +118,7 @@ WMS_1024() {
   ))
   printf "%30s " "$(dc <<< "${tguest[@]} ${dcmean}")"
   printf "\n"
+  printf "# URL: %s\n" "${url}"
 }
 
 
@@ -191,6 +193,12 @@ WMTS_16() {
   ))
   printf "%30s " "$(dc <<< "${tguest[@]} ${dcmean}")"
   printf "\n"
+  montage -geometry 256x256 -background black \
+          tile00 tile10 tile20 tile30 \
+          tile01 tile11 tile21 tile31 \
+          tile02 tile12 tile22 tile32 \
+          tile03 tile13 tile23 tile33 \
+          tiles.png
 }
 
 
