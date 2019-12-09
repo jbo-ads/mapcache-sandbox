@@ -61,7 +61,7 @@ WMTS_1() {
   ))
   printf "%30s " "$(dc <<< "${tguest[@]} ${dcmean}")"
   printf "\n"
-  printf "# URL: %s\n" "${url}"
+  # printf "# URL: %s\n" "${url}"
 }
 
 
@@ -118,7 +118,7 @@ WMS_1024() {
   ))
   printf "%30s " "$(dc <<< "${tguest[@]} ${dcmean}")"
   printf "\n"
-  printf "# URL: %s\n" "${url}"
+  # printf "# URL: %s\n" "${url}"
 }
 
 
@@ -223,7 +223,7 @@ then
   nmes=10  WMS_1024  TEST_005 2 0 0 mapcache-produit produits-i-geo
   nmes=10  WMTS_16   TEST_006 2 0 0 mapcache-produit produits-i-geo
 
-  printf "\n# Couverture par quartiers du catalogue des produits 4x16 tuiles au niveau 3\n"
+  printf "\n# Couverture par quartiers du catalogue des produits: 4x16 tuiles au niveau 3\n"
   nmes=10 WMS_1024   TEST_007 3 0 0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 3 4 0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 3 0 4 mapcache-produit produits-i-geo
@@ -233,7 +233,7 @@ then
   nmes=10 WMTS_16    TEST_007 3 0 4 mapcache-produit produits-i-geo
   nmes=10 WMTS_16    TEST_007 3 4 4 mapcache-produit produits-i-geo
 
-  printf "\n# Couverture par seizième du catalogue des produits 16x16tuiles au niveau 4\n"
+  printf "\n# Couverture par seizièmes du catalogue des produits: 16x16tuiles au niveau 4\n"
   nmes=10 WMS_1024   TEST_007 4  0  0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 4  4  0 mapcache-produit produits-i-geo
   nmes=10 WMS_1024   TEST_007 4  8  0 mapcache-produit produits-i-geo
