@@ -1,11 +1,12 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "hashicorp/bionic64"
-  config.vm.hostname = "vagrant-mapcache-sandbox"
+  config.vm.hostname = "mapcache-sandbox"
   config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
-  config.vm.network "forwarded_port", guest: 80, host: 8842
-  config.vm.network "forwarded_port", guest: 9200, host: 9242
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+  config.vm.network "forwarded_port", guest: 9200, host: 9292
   config.vm.provider "virtualbox" do |v|
-    v.memory = 5120
+    v.name = "mapcache-sandbox"
+    v.memory = 4096
     v.cpus = 2
   end
 
@@ -83,7 +84,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "shell", run: "always", inline: <<-OPENLAYERS_PREP
 	# Préparation d'une page de navigation pour afficher les couches de MapCache
-	#   L'URL depuis l'hôte est "http://localhost:8842/mapcache-sandbox-browser/"
+	#   L'URL depuis l'hôte est "http://localhost:8080/mapcache-sandbox-browser/"
 	#   Ce script est exécuté systématiquement.
 	mkdir -p /var/www/html/mapcache-sandbox-browser
 	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/index.html
@@ -91,15 +92,15 @@ Vagrant.configure("2") do |config|
 		<html>
 		<head>
 		<meta charset="utf-8"/>
-		<title>Test de MapCache</title>
+		<title>MapCache</title>
 		<link href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/css/ol.css"
 		rel="stylesheet" type="text/css" />
 		<link href="https://unpkg.com/ol-layerswitcher@3.4.0/src/ol-layerswitcher.css"
 		rel="stylesheet" type="text/css" />
 		<style type="text/css">
 		.map {
-		height: 800px;
-		width: 100%;
+		height: 98vh;
+		width: 99vw;
 		}
 		</style>
 		<script
@@ -109,7 +110,6 @@ Vagrant.configure("2") do |config|
 		<meta name="anchor" content="insertbefore"/>
 		</head>
 		<body>
-		<h2>Test de MapCache</h2>
 		<div id="map" class="map"></div>
 		<script type="text/javascript">
 		var view = new ol.View({ projection: 'EPSG:3857', center: ol.proj.fromLonLat([0, 0]), zoom: 0 });
@@ -124,7 +124,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", run: "always", inline: <<-MAPCACHE_TEST
 	# Mise en place d'une configuration de MapCache pour vérifier son bon
 	# fonctionnement
-	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-test?"
+	#   L'URL depuis l'hôte commence par "http://localhost:8080/mapcache-test?"
 	#   Ce script est exécuté systématiquement.
 	apachectl -k stop
 	sleep 2
@@ -180,7 +180,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", run: "always", inline: <<-MAPCACHE_SOURCE
 	# Mise en place d'une configuration de MapCache composée de sources WMS
 	# externes
-	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-source?"
+	#   L'URL depuis l'hôte commence par "http://localhost:8080/mapcache-source?"
 	#   Ce script est exécuté systématiquement.
 	apachectl -k stop
 	sleep 2
