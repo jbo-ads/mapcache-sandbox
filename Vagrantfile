@@ -1,16 +1,18 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/bionic64"
+  config.vm.box = "hashicorp/bionic64"
   config.vm.hostname = "vagrant-mapcache-sandbox"
   config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
   config.vm.network "forwarded_port", guest: 80, host: 8842
   config.vm.network "forwarded_port", guest: 9200, host: 9242
   config.vm.provider "virtualbox" do |v|
-    v.memory = 2048
+    v.memory = 5120
+    v.cpus = 2
   end
-  config.vm.provision "shell", run: "always", inline: <<-SHELL
 
+  config.vm.provision "shell", inline: <<-DEPS
 	# Mise en place des dépendances
-	add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable
+	#   Ce script est exécuté une seule fois à la création de la machine virtuelle
+	add-apt-repository -y ppa:ubuntugis/ppa
 	apt-get update
 	apt-get install -y cmake libspatialite-dev libfcgi-dev libproj-dev \
 		libgeos-dev libgdal-dev libtiff-dev libgeotiff-dev \
@@ -24,211 +26,72 @@ Vagrant.configure("2") do |config|
 	add-apt-repository -y "deb https://artifacts.elastic.co/packages/7.x/apt stable main"
 	apt-get update
 	apt-get install -y elasticsearch
+	apt-get install -y dc
+	DEPS
 
-	# Compilation de MapCache
+  config.vm.provision "shell", inline: <<-APACHE
+	# Mise en place d'Apache
+	#   Ce script est exécuté une seule fois à la création de la machine virtuelle
+	apachectl -k stop
+	sleep 2
+	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
+	sed -i '/^LogLevel/s/ mapcache:[a-z0-9]*//' /etc/apache2/apache2.conf
+	sed -i '/^LogLevel/s/$/ mapcache:debug/' /etc/apache2/apache2.conf
+	APACHE
+
+  config.vm.provision "shell", run: "always", inline: <<-MAPCACHE
+	# Installation de MapCache
+	#   Ce script est exécuté systématiquement, mais seules les parties de
+	#   MapCache qui ne sont pas déjà en place sont reprises
 	cd /vagrant
-	test -d mapcache || git clone https://github.com/jbo-ads/mapcache.git
-	cd mapcache
-	git checkout master
-	rm -rf build
-	mkdir build
-	cd build
-	cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
-		-DWITH_TIFF=ON \
-		-DWITH_GEOTIFF=ON \
-		-DWITH_TIFF_WRITE_SUPPORT=ON \
-		-DWITH_PCRE=ON \
-		-DWITH_SQLITE=ON \
-		-DWITH_POSTGRESQL=ON \
-		-DWITH_BERKELEY_DB=ON
+	if [ ! -d mapcache ]
+	then
+		git clone https://github.com/jbo-ads/mapcache.git
+		cd mapcache
+		git checkout master
+	fi
+	cd /vagrant
+	if [ ! -d mapcache/build ]
+	then
+		mkdir mapcache/build
+		cd mapcache/build
+		cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+			-DWITH_TIFF=ON \
+			-DWITH_GEOTIFF=ON \
+			-DWITH_TIFF_WRITE_SUPPORT=ON \
+			-DWITH_PCRE=ON \
+			-DWITH_SQLITE=ON \
+			-DWITH_POSTGRESQL=ON \
+			-DWITH_BERKELEY_DB=ON
+	fi
+	cd /vagrant/mapcache/build
 	make
 	make install
-
 	# Réglages d'ensemble
-	cat <<-EOF > /etc/apache2/mods-enabled/mapcache.load
-		LoadModule mapcache_module /usr/lib/apache2/modules/mod_mapcache.so
-		<Directory /tmp/mc>
-		Require all granted
-		</Directory>
-		EOF
-	mkdir -p /tmp/mc
+	mkdir -p /vagrant/caches
+	if [ ! -f /etc/apache2/mods-enabled/mapcache.load ]
+	then
+		cat <<-EOF > /etc/apache2/mods-enabled/mapcache.load
+			LoadModule mapcache_module /usr/lib/apache2/modules/mod_mapcache.so
+			<Directory /vagrant/caches>
+			Require all granted
+			</Directory>
+			EOF
+	fi
+	rm -f /etc/apache2/conf-enabled/mapcache-*.conf
+	MAPCACHE
 
-	# mapcache-test: Réglages pour le petit test de bon fonctionnement
-	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-test?"
-	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-test.conf
-		<IfModule mapcache_module>
-		MapCacheAlias "/mapcache-test" "/tmp/mc/mapcache-test.xml"
-		</IfModule>
-		EOF
-	cat <<-EOF > /tmp/mc/mapcache-test.xml
-		<?xml version="1.0" encoding="UTF-8"?>
-		<mapcache>
-		<source name="global-tif" type="gdal">
-		<data>/tmp/mc/world.tif</data>
-		</source>
-		<cache name="disk" type="disk">
-		<base>/tmp/mc</base>
-		</cache>
-		<tileset name="global">
-		<cache>disk</cache>
-		<source>global-tif</source>
-		<grid maxzoom="17">GoogleMapsCompatible</grid>
-		<format>JPEG</format>
-		<metatile>1 1</metatile>
-		</tileset>
-		<service type="wmts" enabled="true"/>
-		<service type="wms" enabled="true"/>
-		<log_level>debug</log_level>
-		<threaded_fetching>true</threaded_fetching>
-		</mapcache>
-		EOF
-	cp /vagrant/mapcache/tests/data/world.tif /tmp/mc
-
-	# mapcache-source: Réglages pour diverses sources WMS destinées à construire
-	# des produits simulés
-	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-source?"
-	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-source.conf
-		<IfModule mapcache_module>
-		MapCacheAlias "/mapcache-source" "/tmp/mc/mapcache-source.xml"
-		</IfModule>
-		EOF
-	cat <<-EOF > /tmp/mc/mapcache-source.xml
-		<?xml version="1.0" encoding="UTF-8"?>
-		<mapcache>
-		<!-- terrestris-osm -->
-		<source name="terrestris-osm" type="wms">
-		<http><url>http://ows.terrestris.de/osm/service?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>OSM-WMS</layers>
-		</params></getmap>
-		</source>
-		<cache name="terrestris-osm" type="sqlite3">
-		<dbfile>/tmp/mc/source/terrestris-osm.sqlite3</dbfile>
-		</cache>
-		<tileset name="terrestris-osm">
-		<source>terrestris-osm</source>
-		<cache>terrestris-osm</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<!-- terrestris-topo -->
-		<source name="terrestris-topo" type="wms">
-		<http><url>http://ows.terrestris.de/osm/service?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>TOPO-WMS</layers>
-		</params></getmap>
-		</source>
-		<cache name="terrestris-topo" type="sqlite3">
-		<dbfile>/tmp/mc/source/terrestris-topo.sqlite3</dbfile>
-		</cache>
-		<tileset name="terrestris-topo">
-		<source>terrestris-topo</source>
-		<cache>terrestris-topo</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<!-- terrestris-topo-osm -->
-		<source name="terrestris-topo-osm" type="wms">
-		<http><url>http://ows.terrestris.de/osm/service?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>TOPO-OSM-WMS</layers>
-		</params></getmap>
-		</source>
-		<cache name="terrestris-topo-osm" type="sqlite3">
-		<dbfile>/tmp/mc/source/terrestris-topo-osm.sqlite3</dbfile>
-		</cache>
-		<tileset name="terrestris-topo-osm">
-		<source>terrestris-topo-osm</source>
-		<cache>terrestris-topo-osm</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<!-- terrestris-srtm30-color -->
-		<source name="terrestris-srtm30-color" type="wms">
-		<http><url>http://ows.terrestris.de/osm/service?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>SRTM30-Colored</layers>
-		</params></getmap>
-		</source>
-		<cache name="terrestris-srtm30-color" type="sqlite3">
-		<dbfile>/tmp/mc/source/terrestris-srtm30-color.sqlite3</dbfile>
-		</cache>
-		<tileset name="terrestris-srtm30-color">
-		<source>terrestris-srtm30-color</source>
-		<cache>terrestris-srtm30-color</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<!-- terrestris-srtm30-hillshade -->
-		<source name="terrestris-srtm30-hillshade" type="wms">
-		<http><url>http://ows.terrestris.de/osm/service?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>SRTM30-Hillshade</layers>
-		</params></getmap>
-		</source>
-		<cache name="terrestris-srtm30-hillshade" type="sqlite3">
-		<dbfile>/tmp/mc/source/terrestris-srtm30-hillshade.sqlite3</dbfile>
-		</cache>
-		<tileset name="terrestris-srtm30-hillshade">
-		<source>terrestris-srtm30-hillshade</source>
-		<cache>terrestris-srtm30-hillshade</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<!-- terrestris-srtm30-color-hillshade -->
-		<source name="terrestris-srtm30-color-hillshade" type="wms">
-		<http><url>http://ows.terrestris.de/osm/service?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>SRTM30-Colored-Hillshade</layers>
-		</params></getmap>
-		</source>
-		<cache name="terrestris-srtm30-color-hillshade" type="sqlite3">
-		<dbfile>/tmp/mc/source/terrestris-srtm30-color-hillshade.sqlite3</dbfile>
-		</cache>
-		<tileset name="terrestris-srtm30-color-hillshade">
-		<source>terrestris-srtm30-color-hillshade</source>
-		<cache>terrestris-srtm30-color-hillshade</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<!-- gibs-bluemarble -->
-		<source name="gibs-bluemarble" type="wms">
-		<http><url>https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?</url></http>
-		<getmap><params>
-		<format>image/png</format>
-		<layers>BlueMarble_NextGeneration</layers>
-		</params></getmap>
-		</source>
-		<cache name="gibs-bluemarble" type="sqlite3">
-		<dbfile>/tmp/mc/source/gibs-bluemarble.sqlite3</dbfile>
-		</cache>
-		<tileset name="gibs-bluemarble">
-		<source>gibs-bluemarble</source>
-		<cache>gibs-bluemarble</cache>
-		<grid>GoogleMapsCompatible</grid>
-		<format>PNG</format>
-		</tileset>
-		<service type="wmts" enabled="true"/>
-		<service type="wms" enabled="true"/>
-		<log_level>debug</log_level>
-		<threaded_fetching>true</threaded_fetching>
-		</mapcache>
-		EOF
-
-	# Mise en place d'une page de navigation pour afficher les couches
+  config.vm.provision "shell", run: "always", inline: <<-OPENLAYERS_PREP
+	# Préparation d'une page de navigation pour afficher les couches de MapCache
 	#   L'URL depuis l'hôte est "http://localhost:8842/mapcache-sandbox-browser/"
+	#   Ce script est exécuté systématiquement.
 	mkdir -p /var/www/html/mapcache-sandbox-browser
 	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/index.html
 		<!doctype html>
 		<html>
 		<head>
-		<title>MapCache sandbox browser</title>
+		<meta charset="utf-8"/>
+		<title>Test de MapCache</title>
 		<link href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/css/ol.css"
 		rel="stylesheet" type="text/css" />
 		<link href="https://unpkg.com/ol-layerswitcher@3.4.0/src/ol-layerswitcher.css"
@@ -242,105 +105,200 @@ Vagrant.configure("2") do |config|
 		<script
 		src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/build/ol.js">
 		</script>
-		<script src="https://unpkg.com/ol-layerswitcher@3.4.0">
-		</script>
+		<script src="https://unpkg.com/ol-layerswitcher@3.4.0"></script>
+		<meta name="anchor" content="insertbefore"/>
 		</head>
 		<body>
-		<h2>MapCache sandbox browser</h2>
+		<h2>Test de MapCache</h2>
 		<div id="map" class="map"></div>
 		<script type="text/javascript">
 		var view = new ol.View({ projection: 'EPSG:3857', center: ol.proj.fromLonLat([0, 0]), zoom: 0 });
-		var sanity_check = new ol.layer.Tile({
-		title: 'Sanity check layer', type: 'base',
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-test?',
-		params: {'LAYERS': 'global', 'VERSION': '1.1.1'}
-		}) });
-		
-		
-		var terrestris_osm = new ol.layer.Tile({
-		title: 'OSM (Terrestris)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'terrestris-osm', 'VERSION': '1.1.1'}
-		}) });
-		var terrestris_topo = new ol.layer.Tile({
-		title: 'TOPO (Terrestris)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'terrestris-topo', 'VERSION': '1.1.1'}
-		}) });
-		var terrestris_topo_osm = new ol.layer.Tile({
-		title: 'TOPO OSM (Terrestris)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'terrestris-topo-osm', 'VERSION': '1.1.1'}
-		}) });
-		var terrestris_srtm30_color = new ol.layer.Tile({
-		title: 'SRTM30 Colored (Terrestris)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'terrestris-srtm30-color', 'VERSION': '1.1.1'}
-		}) });
-		var terrestris_srtm30_hillshade = new ol.layer.Tile({
-		title: 'SRTM30 Hillshade (Terrestris)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'terrestris-srtm30-hillshade', 'VERSION': '1.1.1'}
-		}) });
-		var terrestris_srtm30_color_hillshade = new ol.layer.Tile({
-		title: 'SRTM30 Colored Hillshade (Terrestris)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'terrestris-srtm30-color-hillshade', 'VERSION': '1.1.1'}
-		}) });
-		var terrestris = new ol.layer.Group({
-		title: 'Terrestris',
-		fold: 'open',
-		layers: [ terrestris_osm, terrestris_topo, terrestris_topo_osm,
-		terrestris_srtm30_color, terrestris_srtm30_hillshade,
-		terrestris_srtm30_color_hillshade ]
-		});
-		var gibs_bluemarble = new ol.layer.Tile({
-		title: 'Blue Marble (GIBS)', type: 'base', visible: false,
-		source: new ol.source.TileWMS({
-		url: 'http://'+location.host+'/mapcache-source?',
-		params: {'LAYERS': 'gibs-bluemarble', 'VERSION': '1.1.1'}
-		}) });
-		var layers = [ terrestris, gibs_bluemarble, sanity_check ];
 		var map = new ol.Map({ target: 'map', layers: layers, view: view });
 		map.addControl(new ol.control.LayerSwitcher());
 		</script>
 		</body>
 		</html>
 		EOF
+	OPENLAYERS_PREP
 
-	# Relance d'Apache pour la prise en compte des réglages de MapCache
-	chown -R vagrant:vagrant /tmp/mc
-	sed -i 's/www-data/vagrant/' /etc/apache2/envvars
-	sed -i '/^LogLevel/s/ mapcache:[a-z0-9]*//' /etc/apache2/apache2.conf
-	sed -i '/^LogLevel/s/$/ mapcache:debug/' /etc/apache2/apache2.conf
+  config.vm.provision "shell", run: "always", inline: <<-MAPCACHE_TEST
+	# Mise en place d'une configuration de MapCache pour vérifier son bon
+	# fonctionnement
+	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-test?"
+	#   Ce script est exécuté systématiquement.
 	apachectl -k stop
+	sleep 2
+	cp /vagrant/mapcache/tests/data/world.tif /vagrant/caches
+	cat <<-EOF > /vagrant/caches/mapcache-test.xml
+		<?xml version="1.0" encoding="UTF-8"?>
+		<mapcache>
+			<source name="global-tif" type="gdal">
+				<data>/vagrant/caches/world.tif</data>
+			</source>
+			<cache name="disk" type="disk" layout="template">
+				<template>/vagrant/caches/test/{z}/{y}/{x}.jpg</template>
+			</cache>
+			<tileset name="global">
+				<cache>disk</cache>
+				<source>global-tif</source>
+				<grid maxzoom="17">GoogleMapsCompatible</grid>
+				<format>JPEG</format>
+				<metatile>1 1</metatile>
+			</tileset>
+			<service type="wmts" enabled="true"/>
+			<service type="wms" enabled="true"/>
+			<log_level>debug</log_level>
+			<threaded_fetching>true</threaded_fetching>
+		</mapcache>
+		EOF
+	chown vagrant:vagrant /vagrant/caches/mapcache-test.xml
+	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-test.conf
+		<IfModule mapcache_module>
+			MapCacheAlias "/mapcache-test" "/vagrant/caches/mapcache-test.xml"
+		</IfModule>
+		EOF
+	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/mapcache-test.js
+		var layers = [ ];
+		var mapcache_test = new ol.layer.Tile({
+			title: 'Image de test en faible résolution',
+			type: 'base',
+			visible: true,
+			source: new ol.source.TileWMS({
+				url: 'http://'+location.host+'/mapcache-test?',
+				params: {'LAYERS': 'global', 'VERSION': '1.1.1'}
+			})
+		});
+		layers.unshift(mapcache_test)
+		EOF
+	gawk -i inplace '/anchor/&&c==0{print l};{print}' \
+		l='<script src="mapcache-test.js"></script>' \
+		/var/www/html/mapcache-sandbox-browser/index.html
 	apachectl -k start
+	sleep 2
+	MAPCACHE_TEST
 
-	# Mise en place de PostgreSQL
-	sed -i 's/md5/trust/' /etc/postgresql/10/main/pg_hba.conf
-	sed -i 's/peer/trust/' /etc/postgresql/10/main/pg_hba.conf
-	echo "log_statement = 'all'" | sudo tee -a /etc/postgresql/10/main/postgresql.conf
-	service postgresql restart
-	psql -U postgres -c 'DROP DATABASE mapcache;'
-	psql -U postgres -c 'CREATE DATABASE mapcache;'
+  config.vm.provision "shell", run: "always", inline: <<-MAPCACHE_SOURCE
+	# Mise en place d'une configuration de MapCache composée de sources WMS
+	# externes
+	#   L'URL depuis l'hôte commence par "http://localhost:8842/mapcache-source?"
+	#   Ce script est exécuté systématiquement.
+	apachectl -k stop
+	sleep 2
+	cat <<-EOF > /vagrant/caches/mapcache-source.xml
+		<?xml version="1.0" encoding="UTF-8"?>
+		<mapcache>
+		EOF
+	cat <<-EOF > /var/www/html/mapcache-sandbox-browser/mapcache-source.js
+		var mapcache_source = new ol.layer.Group({
+			title: 'Sources externes',
+			fold: 'open'
+		});
+		layers.unshift(mapcache_source)
+		EOF
+	for source in \
+		"HeiGIT&OSM&https://maps.heigit.org/osm-wms/service?&osm_auto:all" \
+		"Mundialis&OSM&http://ows.mundialis.de/services/service?&OSM-WMS" \
+		"Terrestris&OSM&http://ows.terrestris.de/osm/service?&OSM-WMS" \
+		"Stamen&Terrain&http://tile.stamen.com/terrain/{z}/{x}/{inv_y}.png&<rest>" \
+		"Stamen&Watercolor&http://tile.stamen.com/watercolor/{z}/{x}/{inv_y}.jpg&<rest>" \
+		"GIBS&Blue Marble - Relief&https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?&BlueMarble_ShadedRelief_Bathymetry" \
+		"ESRI&World Imagery&https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{inv_y}/{x}&<rest>" \
+		"NOAA&Dark Gray&https://server.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{inv_y}/{x}&<rest>" \
+		"AJAston&Pirate Map&http://d.tiles.mapbox.com/v3/aj.Sketchy2/{z}/{x}/{inv_y}.png&<rest maxzoom=\\"6\\">" \
+		"MakinaCorpus&Toulouse Pencil&https://d-tiles-vuduciel2.makina-corpus.net/toulouse-hand-drawn/{z}/{x}/{inv_y}.png&<rest minzoom=\\"13\\" maxzoom=\\"18\\" minx=\\"136229\\" miny=\\"5386020\\" maxx=\\"182550\\" maxy=\\"5419347\\">"
+	do
+		IFS='&' read provider name url layer <<< "${source}"
+		lprovider=$(tr [:upper:] [:lower:] <<< ${provider})
+		mclayer=$(tr [:upper:] [:lower:] <<< "${provider}-${name}" | sed 's/ //g')
+		jslayer=$(tr '-' '_' <<< ${mclayer})
+		if grep -q -v ${provider} <<< ${providers}
+		then
+			providers=${providers}:${provider}
+			cat <<-EOF >> /var/www/html/mapcache-sandbox-browser/mapcache-source.js
+				var mapcache_source_${lprovider} = new ol.layer.Group({
+					title: '${provider}',
+					fold: 'close'
+				});
+				mapcache_source.getLayers().array_.unshift(mapcache_source_${lprovider});
+				EOF
+		fi
+		cat <<-EOF >> /var/www/html/mapcache-sandbox-browser/mapcache-source.js
+			var ${jslayer} = new ol.layer.Tile({
+				title: '${name}',
+				type: 'base',
+				visible: false,
+				source: new ol.source.TileWMS({
+					url: 'http://'+location.host+'/mapcache-source?',
+					params: {'LAYERS': '${mclayer}', 'VERSION': '1.1.1'}
+				})
+			});
+			mapcache_source_${lprovider}.getLayers().array_.unshift(${jslayer});
+			EOF
+		if grep -q -v "<rest" <<< "${layer}"
+		then
+			cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+				<!-- ${mclayer} -->
+				<source name="${mclayer}" type="wms">
+					<http><url>${url}</url></http>
+					<getmap><params>
+						<format>image/png</format>
+						<layers>${layer}</layers>
+					</params></getmap>
+				</source>
+				EOF
+		else
+			gridopt=$(sed 's/^.*<rest\\(.*\\)>$/\\1/' <<< "${layer}")
+			cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+				<!-- ${mclayer} -->
+				<cache name="remote-${mclayer}" type="rest">
+					<url>${url}</url>
+				</cache>
+				<tileset name="remote-${mclayer}">
+					<cache>remote-${mclayer}</cache>
+					<grid>GoogleMapsCompatible</grid>
+				</tileset>
+				<source name="${mclayer}" type="wms">
+					<http><url>http://localhost:80/mapcache-source?</url></http>
+					<getmap><params>
+						<format>image/png</format>
+						<layers>remote-${mclayer}</layers>
+					</params></getmap>
+				</source>
+				EOF
+		fi
+		cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+			<cache name="${mclayer}" type="sqlite3">
+				<dbfile>/vagrant/caches/source/${mclayer}.sqlite3</dbfile>
+			</cache>
+			<tileset name="${mclayer}">
+				<source>${mclayer}</source>
+				<format>PNG</format>
+				<cache>${mclayer}</cache>
+				<grid${gridopt}>GoogleMapsCompatible</grid>
+			</tileset>
+			EOF
+	done
+	cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+			<service type="wmts" enabled="true"/>
+			<service type="wms" enabled="true">
+			<maxsize>4096</maxsize>
+			</service>
+			<log_level>debug</log_level>
+			<threaded_fetching>true</threaded_fetching>
+		</mapcache>
+		EOF
+	chown vagrant:vagrant /vagrant/caches/mapcache-source.xml
+	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-source.conf
+		<IfModule mapcache_module>
+			MapCacheAlias "/mapcache-source" "/vagrant/caches/mapcache-source.xml"
+		</IfModule>
+		EOF
+	gawk -i inplace '/anchor/&&c==0{print l};{print}' \
+		l='<script src="mapcache-source.js"></script>' \
+		/var/www/html/mapcache-sandbox-browser/index.html
+	apachectl -k start
+	sleep 2
+	MAPCACHE_SOURCE
 
-	# Mise en place d'ElasticSearch
-	sed -i \
-		-e "/^#node.name: /s/^/node.name: vagrant-mapcache-sandbox /" \
-		-e "/^#network.host: /s/^/network.host: 0.0.0.0 /" \
-		-e "/^#cluster.initial_master_nodes: /s/^/cluster.initial_master_nodes: vagrant-mapcache-sandbox /" \
-		/etc/elasticsearch/elasticsearch.yml
-	systemctl enable elasticsearch.service
-	systemctl start elasticsearch.service
-	curl -s -XDELETE "http://localhost:9200/dim"
-	curl -s "http://localhost:9200/"
 
-	SHELL
 end
