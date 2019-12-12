@@ -42,8 +42,8 @@ basedir=$(cd $(dirname $0) ; pwd)
 http="http://localhost:80"
 es="http://localhost:9200"
 curl -s "${http}" > /dev/null 2>&1 \
-  || http="http://localhost:8842" \
-     es="http://localhost:9242"
+  || http="http://localhost:8080" \
+     es="http://localhost:9292"
 if ! curl -s "${http}" > /dev/null 2>&1
 then
   printf "Error: MapCache server has failed\n" >&2

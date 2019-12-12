@@ -6,7 +6,7 @@
 basedir=$(cd $(dirname $0) ; pwd)
 es="http://localhost:9200"
 curl -s "${es}" > /dev/null 2>&1 \
-  || es="http://localhost:9242"
+  || es="http://localhost:9292"
 if ! curl -s "${es}" > /dev/null 2>&1
 then
   printf "Error: ElasticSearch server has failed\n" >&2

@@ -51,7 +51,7 @@ then
   read llx urx <<< $(echo "20k $llx sx $urx sX $r sr [lxlXlr--sxlrsX]sV lXlr<V [lxlr+lX-sX0lr-sx]sv lx0lr->v lXlxfq" | dc)
   read lly ury <<< $(echo "20k $lly sy $ury sY $r sr [lylYlr--sylrsY]sV lYlr<V [lylr+lY-sY0lr-sy]sv ly0lr->v lYlyfq" | dc)
 
-  url="http://localhost:8842/mapcache-produit?service=wms"
+  url="http://localhost:8080/mapcache-produit?service=wms"
   req="&request=getmap&layers=produits-es&srs=epsg:3857"
   req="${req}&bbox=${llx},${lly},${urx},${ury}"
   req="${req}&width=$((w*256))&height=$((h*256))&dim_milieu=${m}"
@@ -68,7 +68,7 @@ else
   tix=$(dc <<< "$xt $tilesize ~rpq")
   tiy=$(dc <<< "$yt $tilesize ~rpq")
 
-  url="http://localhost:8842/mapcache-produit/wmts?service=wmts"
+  url="http://localhost:8080/mapcache-produit/wmts?service=wmts"
   req="&request=gettile&layer=produits-es&tilematrixset=GoogleMapsCompatible"
   req="${req}&tilematrix=${z}&tilerow=${tiy}&tilecol=${tix}"
   req="${req}&milieu=${m}"

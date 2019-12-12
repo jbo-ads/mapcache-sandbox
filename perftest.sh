@@ -22,7 +22,7 @@ WMTS_1() {
   f=${FUNCNAME[0]}
   printf "%-10s %-10s %4s %6s %6s %-16s %-20s " $f $d $z $x $y $c $l
 
-  src="http://localhost:8842/${c}/wmts"
+  src="http://localhost:8080/${c}/wmts"
   req="SERVICE=WMTS&REQUEST=GetTile"
   lay="&LAYER=${l}&TILEMATRIXSET=GoogleMapsCompatible"
   loc="&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}"
@@ -79,7 +79,7 @@ WMS_1024() {
   maxx=$(dc <<< "5k 0 $r - $x 4+ $tilesize *+pq")
   maxy=$(dc <<< "5k 0 $r - $ntiles $y - $tilesize *+pq")
 
-  src="http://localhost:8842/${c}"
+  src="http://localhost:8080/${c}"
   req="SERVICE=WMS&REQUEST=GetMap"
   lay="&LAYERS=${l}&SRS=EPSG:3857"
   loc="&BBOX=${minx},${miny},${maxx},${maxy}"
@@ -128,7 +128,7 @@ WMTS_16() {
   f=${FUNCNAME[0]}
   printf "%-10s %-10s %4s %6s %6s %-16s %-20s " $f $d $z $x $y $c $l
 
-  src="http://localhost:8842/${c}/wmts"
+  src="http://localhost:8080/${c}/wmts"
   req="SERVICE=WMTS&REQUEST=GetTile"
   lay="&LAYER=${l}&TILEMATRIXSET=GoogleMapsCompatible"
   loc="&TILEMATRIX=0&TILEROW=0&TILECOL=0"
@@ -220,8 +220,21 @@ then
   nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-geo
   nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i
   nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-geo
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-thr
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-geo-thr
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-thr
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-geo-thr
+  nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-es
+  nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-geo-es
+  nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-es
+  nmes=10  WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-geo-es
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-thr-es
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-geo-thr-es
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-thr-es
+  nmes=2   WMTS_1    TEST_004 0 0 0 mapcache-produit produits-i-geo-thr-es
   nmes=10  WMS_1024  TEST_005 2 0 0 mapcache-produit produits-i-geo
   nmes=10  WMTS_16   TEST_006 2 0 0 mapcache-produit produits-i-geo
+  exit
 
   printf "\n# Couverture par quartiers du catalogue des produits: 4x16 tuiles au niveau 3\n"
   nmes=10 WMS_1024   TEST_007 3 0 0 mapcache-produit produits-i-geo
@@ -270,7 +283,7 @@ then
 elif [ $# -eq 7 ]
 then
 
-  nmes=1 eval $1 $2 $3 $4 $5 $6 $7
+  nmes=${nmes:-1} eval $1 $2 $3 $4 $5 $6 $7
 
 elif [ $# -eq 1 ]
 then
@@ -282,6 +295,11 @@ then
     xcompile)
       vagrant ssh -c 'sudo apachectl -k stop ;
                       cd /vagrant/mapcache/build && sudo make install ;
+                      sudo apachectl -k start'
+      ;;
+    xrestart)
+      vagrant ssh -c 'sudo apachectl -k stop ;
+                      sleep 2 ;
                       sudo apachectl -k start'
       ;;
   esac
