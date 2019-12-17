@@ -1,0 +1,41 @@
+#!/bin/bash
+
+cd /vagrant
+if [ ! -d mapcache ]
+then
+  git clone https://github.com/jbo-ads/mapcache.git
+  cd mapcache
+  git checkout master
+fi
+
+cd /vagrant
+if [ ! -d mapcache/build ]
+then
+  mkdir mapcache/build
+  cd mapcache/build
+  cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
+           -DWITH_TIFF=ON \
+           -DWITH_GEOTIFF=ON \
+           -DWITH_TIFF_WRITE_SUPPORT=ON \
+           -DWITH_PCRE=ON \
+           -DWITH_SQLITE=ON \
+           -DWITH_POSTGRESQL=ON \
+           -DWITH_BERKELEY_DB=ON
+fi
+
+cd /vagrant/mapcache/build
+make
+make install
+
+mkdir -p /vagrant/caches
+if [ ! -f /etc/apache2/mods-enabled/mapcache.load ]
+then
+  cat <<-EOF > /etc/apache2/mods-enabled/mapcache.load
+	LoadModule mapcache_module /usr/lib/apache2/modules/mod_mapcache.so
+	<Directory /vagrant/caches>
+	Require all granted
+	</Directory>
+	EOF
+fi
+
+rm -f /etc/apache2/conf-enabled/mapcache-*.conf
