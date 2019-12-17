@@ -739,6 +739,10 @@ Vagrant.configure("2") do |config|
 			<service type="wms" enabled="true"/>
 			<log_level>debug</log_level>
 			<threaded_fetching>true</threaded_fetching>
+			<connection_pool>
+			<max_connections>1500</max_connections>
+			<time_to_live_us>200000</time_to_live_us>
+			</connection_pool>
 		</mapcache>
 		EOF
 	cat <<-EOF > /etc/apache2/conf-enabled/mapcache-produit.conf
