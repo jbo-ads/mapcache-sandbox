@@ -20,3 +20,4 @@ add-apt-repository -y "deb https://artifacts.elastic.co/packages/7.x/apt stable 
 apt-get update
 apt-get install -y elasticsearch
 apt-get install -y dc
+apt-get install -y git gawk

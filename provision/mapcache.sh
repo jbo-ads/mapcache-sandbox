@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /vagrant
+cd /tmp
 if [ ! -d mapcache ]
 then
   git clone https://github.com/jbo-ads/mapcache.git
@@ -8,7 +8,7 @@ then
   git checkout master
 fi
 
-cd /vagrant
+cd /tmp
 if [ ! -d mapcache/build ]
 then
   mkdir mapcache/build
@@ -23,16 +23,18 @@ then
            -DWITH_BERKELEY_DB=ON
 fi
 
-cd /vagrant/mapcache/build
+cd /tmp/mapcache/build
 make
 make install
 
-mkdir -p /vagrant/caches
 if [ ! -f /etc/apache2/mods-enabled/mapcache.load ]
 then
   cat <<-EOF > /etc/apache2/mods-enabled/mapcache.load
 	LoadModule mapcache_module /usr/lib/apache2/modules/mod_mapcache.so
-	<Directory /vagrant/caches>
+	<Directory /tmp/mcdata>
+	Require all granted
+	</Directory>
+	<Directory /share/caches>
 	Require all granted
 	</Directory>
 	EOF

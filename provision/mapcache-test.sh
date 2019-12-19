@@ -1,19 +1,17 @@
 #!/bin/bash
 
 
-apachectl -k stop
-sleep 2
+mkdir -p /tmp/mcdata/
+cp /tmp/mapcache/tests/data/world.tif /tmp/mcdata
 
-cp /vagrant/mapcache/tests/data/world.tif /vagrant/caches
-
-cat <<-EOF > /vagrant/caches/mapcache-test.xml
+cat <<-EOF > /tmp/mcdata/mapcache-test.xml
 	<?xml version="1.0" encoding="UTF-8"?>
 	<mapcache>
 		<source name="global-tif" type="gdal">
-			<data>/vagrant/caches/world.tif</data>
+			<data>/tmp/mcdata/world.tif</data>
 		</source>
 		<cache name="disk" type="disk" layout="template">
-			<template>/vagrant/caches/test/{z}/{y}/{x}.jpg</template>
+			<template>/share/caches/test/{z}/{y}/{x}.jpg</template>
 		</cache>
 		<tileset name="global">
 			<cache>disk</cache>
@@ -29,11 +27,9 @@ cat <<-EOF > /vagrant/caches/mapcache-test.xml
 	</mapcache>
 	EOF
 
-chown vagrant:vagrant /vagrant/caches/mapcache-test.xml
-
 cat <<-EOF > /etc/apache2/conf-enabled/mapcache-test.conf
 	<IfModule mapcache_module>
-		MapCacheAlias "/mapcache-test" "/vagrant/caches/mapcache-test.xml"
+		MapCacheAlias "/mapcache-test" "/tmp/mcdata/mapcache-test.xml"
 	</IfModule>
 	EOF
 
@@ -55,5 +51,3 @@ gawk -i inplace '/anchor/&&c==0{print l};{print}' \
 	l='<script src="mapcache-test.js"></script>' \
 	/var/www/html/mapcache-sandbox-browser/index.html
 
-apachectl -k start
-sleep 2

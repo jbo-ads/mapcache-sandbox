@@ -1,10 +1,7 @@
 #!/bin/bash
 
 
-apachectl -k stop
-sleep 2
-
-cat <<-EOF > /vagrant/caches/mapcache-source.xml
+cat <<-EOF > /tmp/mcdata/mapcache-source.xml
 	<?xml version="1.0" encoding="UTF-8"?>
 	<mapcache>
 	EOF
@@ -58,7 +55,7 @@ do
 	EOF
   if grep -q -v "<rest" <<< "${layer}"
   then
-    cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+    cat <<-EOF >> /tmp/mcdata/mapcache-source.xml
 	<!-- ${mclayer} -->
 	<source name="${mclayer}" type="wms">
 		<http><url>${url}</url></http>
@@ -70,7 +67,7 @@ do
 	EOF
   else
     gridopt=$(sed 's/^.*<rest\(.*\)>$/\1/' <<< "${layer}")
-    cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+    cat <<-EOF >> /tmp/mcdata/mapcache-source.xml
 	<!-- ${mclayer} -->
 	<cache name="remote-${mclayer}" type="rest">
 		<url>${url}</url>
@@ -88,9 +85,9 @@ do
 	</source>
 	EOF
   fi
-    cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+    cat <<-EOF >> /tmp/mcdata/mapcache-source.xml
 	<cache name="${mclayer}" type="sqlite3">
-		<dbfile>/vagrant/caches/source/${mclayer}.sqlite3</dbfile>
+		<dbfile>/share/caches/source/${mclayer}.sqlite3</dbfile>
 	</cache>
 	<tileset name="${mclayer}">
 		<source>${mclayer}</source>
@@ -101,7 +98,7 @@ do
 	EOF
 done
 
-cat <<-EOF >> /vagrant/caches/mapcache-source.xml
+cat <<-EOF >> /tmp/mcdata/mapcache-source.xml
 	<service type="wmts" enabled="true"/>
 	<service type="wms" enabled="true">
 	<maxsize>4096</maxsize>
@@ -111,11 +108,9 @@ cat <<-EOF >> /vagrant/caches/mapcache-source.xml
 	</mapcache>
 	EOF
 
-chown vagrant:vagrant /vagrant/caches/mapcache-source.xml
-
 cat <<-EOF > /etc/apache2/conf-enabled/mapcache-source.conf
 	<IfModule mapcache_module>
-		MapCacheAlias "/mapcache-source" "/vagrant/caches/mapcache-source.xml"
+		MapCacheAlias "/mapcache-source" "/tmp/mcdata/mapcache-source.xml"
 	</IfModule>
 	EOF
 
@@ -123,5 +118,3 @@ gawk -i inplace '/anchor/&&c==0{print l};{print}' \
           l='<script src="mapcache-source.js"></script>' \
           /var/www/html/mapcache-sandbox-browser/index.html
 
-apachectl -k start
-sleep 2
