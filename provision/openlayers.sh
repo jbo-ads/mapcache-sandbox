@@ -7,16 +7,16 @@ cat <<-EOF > /var/www/html/mapcache-sandbox-browser/index.html
 		<head>
 			<meta charset="utf-8"/>
 			<title>MapCache</title>
-			<link href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/css/ol.css" rel="stylesheet" type="text/css" />
-			<link href="https://unpkg.com/ol-layerswitcher@3.4.0/src/ol-layerswitcher.css" rel="stylesheet" type="text/css" />
+			<link href="../css/ol.css" rel="stylesheet" type="text/css" />
+			<link href="../css/ol-layerswitcher.css" rel="stylesheet" type="text/css" />
 			<style type="text/css">
 				.map {
 					height: 98vh;
 					width: 99vw;
 				}
 			</style>
-			<script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/build/ol.js"></script>
-			<script src="https://unpkg.com/ol-layerswitcher@3.4.0"></script>
+			<script src="../js/ol.js"></script>
+			<script src="../js/ol-layerswitcher.js"></script>
 			<meta name="anchor" content="insertbefore"/>
 		</head>
 		<body>

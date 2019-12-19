@@ -21,3 +21,14 @@ apt-get update
 apt-get install -y elasticsearch
 apt-get install -y dc
 apt-get install -y git gawk
+
+mkdir -p /var/www/html/css
+cd /var/www/html/css
+curl -sLO 'https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/css/ol.css'
+curl -sLO 'https://unpkg.com/ol-layerswitcher@3.4.0/src/ol-layerswitcher.css'
+
+mkdir -p /var/www/html/js
+cd /var/www/html/js
+curl -sLO 'https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.0.1/build/ol.js'
+curl -sL -o ol-layerswitcher.js 'https://unpkg.com/ol-layerswitcher@3.4.0'
+
